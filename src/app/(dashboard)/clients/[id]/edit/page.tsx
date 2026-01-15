@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/select'
 import { ArrowLeft } from 'lucide-react'
 import { Client, BusinessHours } from '@/types/database'
+import { BrandResearchWizard, BrandData } from '@/components/brand-research-wizard'
 
 const TIMEZONES = [
   'Europe/London',
@@ -41,6 +42,7 @@ export default function EditClientPage({ params }: EditClientPageProps) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [client, setClient] = useState<Client | null>(null)
 
   const [formData, setFormData] = useState({
     name: '',
@@ -73,6 +75,7 @@ export default function EditClientPage({ params }: EditClientPageProps) {
       }
 
       const clientData = data as Client
+      setClient(clientData)
       setFormData({
         name: clientData.name,
         brand_name: clientData.brand_name,
@@ -85,6 +88,34 @@ export default function EditClientPage({ params }: EditClientPageProps) {
 
     fetchClient()
   }, [params.id, router])
+
+  const handleSaveBrandData = async (brandData: BrandData) => {
+    const response = await fetch(`/api/clients/${params.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...brandData,
+        brand_researched_at: new Date().toISOString()
+      }),
+    })
+
+    if (!response.ok) {
+      const data = await response.json()
+      throw new Error(data.error || 'Failed to save brand data')
+    }
+
+    // Refresh client data
+    const supabase = createClient()
+    const { data } = await supabase
+      .from('clients')
+      .select('*')
+      .eq('id', params.id)
+      .single()
+
+    if (data) {
+      setClient(data as Client)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -143,7 +174,7 @@ export default function EditClientPage({ params }: EditClientPageProps) {
   }
 
   return (
-    <div className="p-8 max-w-2xl">
+    <div className="p-8 max-w-3xl space-y-6">
       <div className="mb-6">
         <Link
           href={`/clients/${params.id}`}
@@ -153,6 +184,11 @@ export default function EditClientPage({ params }: EditClientPageProps) {
           Back to Client
         </Link>
       </div>
+
+      {/* Brand Research Section */}
+      {client && (
+        <BrandResearchWizard client={client} onSave={handleSaveBrandData} />
+      )}
 
       <Card>
         <CardHeader>

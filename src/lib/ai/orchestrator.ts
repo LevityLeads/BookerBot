@@ -270,15 +270,12 @@ export class ConversationOrchestrator {
     }
   }
 
-  private parseWorkflowKnowledge(workflow: Workflow): WorkflowKnowledge {
-    // Try to parse knowledge from workflow's custom_fields or instructions
+  private parseWorkflowKnowledge(workflow: Workflow & { clients?: Client }): WorkflowKnowledge {
     const knowledge = createEmptyKnowledge()
+    const client = workflow.clients
 
-    // Check if workflow has structured knowledge stored
-    const instructions = workflow.instructions || ''
+    // Get qualification criteria from workflow
     const qualificationCriteria = workflow.qualification_criteria || ''
-
-    // Parse qualification criteria
     if (qualificationCriteria) {
       knowledge.qualificationCriteria = qualificationCriteria
         .split('\n')
@@ -286,27 +283,48 @@ export class ConversationOrchestrator {
         .filter(line => line.length > 0)
     }
 
-    // For now, extract what we can from instructions
-    // In the future, this will come from the brand research stored in the workflow
-    knowledge.goal = workflow.name
-    knowledge.brandSummary = instructions.slice(0, 200)
-    knowledge.companyName = (workflow as Workflow & { clients?: Client }).clients?.brand_name ||
-      (workflow as Workflow & { clients?: Client }).clients?.name || 'the company'
-    knowledge.tone = 'Professional and friendly'
-    knowledge.services = []
-    knowledge.targetAudience = ''
+    // Workflow-specific info
+    knowledge.goal = workflow.description || workflow.name
+
+    // Brand info comes from Client (set via brand research)
+    if (client) {
+      knowledge.companyName = client.brand_name || client.name
+      knowledge.brandSummary = client.brand_summary || ''
+      knowledge.services = (client.brand_services as string[]) || []
+      knowledge.targetAudience = client.brand_target_audience || ''
+      knowledge.tone = client.brand_tone || 'Professional and friendly'
+      knowledge.faqs = (client.brand_faqs as Array<{ question: string; answer: string }>) || []
+      knowledge.dos = (client.brand_dos as string[]) || [
+        'Be helpful and answer questions',
+        'Be respectful of their time',
+        'Keep responses brief for SMS'
+      ]
+      knowledge.donts = (client.brand_donts as string[]) || [
+        'Be pushy or aggressive',
+        'Make promises you cannot keep',
+        'Ignore opt-out requests'
+      ]
+    } else {
+      // Fallback defaults
+      knowledge.companyName = 'the company'
+      knowledge.brandSummary = workflow.instructions?.slice(0, 200) || ''
+      knowledge.tone = 'Professional and friendly'
+      knowledge.services = []
+      knowledge.targetAudience = ''
+      knowledge.faqs = []
+      knowledge.dos = [
+        'Be helpful and answer questions',
+        'Be respectful of their time',
+        'Keep responses brief for SMS'
+      ]
+      knowledge.donts = [
+        'Be pushy or aggressive',
+        'Make promises you cannot keep',
+        'Ignore opt-out requests'
+      ]
+    }
+
     knowledge.commonObjections = []
-    knowledge.faqs = []
-    knowledge.dos = [
-      'Be helpful and answer questions',
-      'Be respectful of their time',
-      'Keep responses brief for SMS'
-    ]
-    knowledge.donts = [
-      'Be pushy or aggressive',
-      'Make promises you cannot keep',
-      'Ignore opt-out requests'
-    ]
 
     return knowledge
   }
