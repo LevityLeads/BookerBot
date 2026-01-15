@@ -298,30 +298,31 @@ appointments
 
 ---
 
-### Sprint 2: Contact Management & CSV Import
+### Sprint 2: Contact Management & CSV Import (COMPLETED)
 **Goal:** Manage contacts and import them into workflows
 
 **Deliverables:**
-- [ ] Contact CRUD API routes
-  - [ ] GET /api/contacts (with workflow_id filter)
-  - [ ] POST /api/contacts
-  - [ ] GET /api/contacts/[id]
-  - [ ] PUT /api/contacts/[id]
-  - [ ] DELETE /api/contacts/[id]
-- [ ] Contacts UI
-  - [ ] Contacts list page with filtering/search
-  - [ ] Contact detail view with conversation history
-  - [ ] Create contact dialog
-  - [ ] Edit contact page
-  - [ ] Delete contact with confirmation
-- [ ] CSV Import
-  - [ ] CSV upload component
-  - [ ] Column mapping interface
-  - [ ] Validation and error reporting
-  - [ ] Bulk insert with progress indicator
-- [ ] Contact status management
-  - [ ] Manual status updates
-  - [ ] Bulk actions (pause, resume, mark opted-out)
+- [x] Contact CRUD API routes
+  - [x] GET /api/contacts (with workflow_id, client_id, status, search filters)
+  - [x] POST /api/contacts (single and bulk import)
+  - [x] GET /api/contacts/[id] (with messages and appointments)
+  - [x] PUT /api/contacts/[id]
+  - [x] DELETE /api/contacts/[id]
+- [x] Contacts UI
+  - [x] Contacts list page with filtering/search
+  - [x] Contact detail view with conversation history
+  - [x] Create contact dialog (individual entry)
+  - [x] Edit contact page
+  - [x] Delete contact with confirmation
+- [x] CSV Import
+  - [x] CSV upload component
+  - [x] Column mapping interface with auto-detection
+  - [x] Validation and preview before import
+  - [x] Bulk insert with result summary
+- [x] Contact status management
+  - [x] Manual status updates (8 statuses)
+  - [x] Bulk actions bar for multi-select
+  - [x] Bulk status update and deletion
 
 ---
 
