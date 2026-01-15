@@ -1,8 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { WorkflowsTable } from './workflows-table'
-import { CreateWorkflowDialog } from './create-workflow-dialog'
+import { CreateWorkflowWizard } from './create-workflow-wizard'
 import { Button } from '@/components/ui/button'
-import { Plus } from 'lucide-react'
+import { Sparkles } from 'lucide-react'
 import { Client, Workflow } from '@/types/database'
 
 export default async function WorkflowsPage({
@@ -42,12 +42,12 @@ export default async function WorkflowsPage({
           <h1 className="text-2xl font-bold text-foreground">Workflows</h1>
           <p className="text-muted-foreground">Manage your automation workflows</p>
         </div>
-        <CreateWorkflowDialog clients={typedClients}>
+        <CreateWorkflowWizard clients={typedClients}>
           <Button>
-            <Plus className="w-4 h-4 mr-2" />
-            Add Workflow
+            <Sparkles className="w-4 h-4 mr-2" />
+            Create AI Workflow
           </Button>
-        </CreateWorkflowDialog>
+        </CreateWorkflowWizard>
       </div>
 
       <WorkflowsTable workflows={typedWorkflows} />
