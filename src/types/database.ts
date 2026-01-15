@@ -38,6 +38,17 @@ export type Database = {
           timezone: string
           business_hours: Json
           twilio_phone_number: string | null
+          // Brand research fields
+          brand_url: string | null
+          brand_summary: string | null
+          brand_services: Json
+          brand_target_audience: string | null
+          brand_tone: string | null
+          brand_usps: Json
+          brand_faqs: Json
+          brand_dos: Json
+          brand_donts: Json
+          brand_researched_at: string | null
           created_at: string
           updated_at: string
         }
@@ -49,6 +60,17 @@ export type Database = {
           timezone?: string
           business_hours?: Json
           twilio_phone_number?: string | null
+          // Brand research fields
+          brand_url?: string | null
+          brand_summary?: string | null
+          brand_services?: Json
+          brand_target_audience?: string | null
+          brand_tone?: string | null
+          brand_usps?: Json
+          brand_faqs?: Json
+          brand_dos?: Json
+          brand_donts?: Json
+          brand_researched_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -60,6 +82,17 @@ export type Database = {
           timezone?: string
           business_hours?: Json
           twilio_phone_number?: string | null
+          // Brand research fields
+          brand_url?: string | null
+          brand_summary?: string | null
+          brand_services?: Json
+          brand_target_audience?: string | null
+          brand_tone?: string | null
+          brand_usps?: Json
+          brand_faqs?: Json
+          brand_dos?: Json
+          brand_donts?: Json
+          brand_researched_at?: string | null
           created_at?: string
           updated_at?: string
         }

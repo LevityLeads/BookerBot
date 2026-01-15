@@ -29,11 +29,11 @@ export default async function WorkflowsPage({
 
   const { data: clients } = await supabase
     .from('clients')
-    .select('id, name, brand_name')
+    .select('id, name, brand_name, brand_summary, brand_researched_at')
     .order('name')
 
   const typedWorkflows = (workflows || []) as (Workflow & { clients: Pick<Client, 'name' | 'brand_name'> })[]
-  const typedClients = (clients || []) as Pick<Client, 'id' | 'name' | 'brand_name'>[]
+  const typedClients = (clients || []) as Pick<Client, 'id' | 'name' | 'brand_name' | 'brand_summary' | 'brand_researched_at'>[]
 
   return (
     <div className="p-8">
