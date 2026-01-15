@@ -15,6 +15,7 @@ import {
   LogOut,
   Settings,
   Zap,
+  Sparkles,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { User } from '@supabase/supabase-js'
@@ -24,6 +25,7 @@ const navigation = [
   { name: 'Clients', href: '/clients', icon: Building2 },
   { name: 'Workflows', href: '/workflows', icon: Workflow },
   { name: 'Contacts', href: '/contacts', icon: Users },
+  { name: 'AI Playground', href: '/ai-playground', icon: Sparkles },
   { name: 'Appointments', href: '/appointments', icon: Calendar },
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
 ]
