@@ -16,7 +16,6 @@ import {
   Settings,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Separator } from '@/components/ui/separator'
 import type { User } from '@supabase/supabase-js'
 
 const navigation = [
@@ -29,7 +28,7 @@ const navigation = [
 ]
 
 interface SidebarProps {
-  user: User
+  user?: User | null
 }
 
 export function Sidebar({ user }: SidebarProps) {
@@ -44,10 +43,21 @@ export function Sidebar({ user }: SidebarProps) {
   }
 
   return (
-    <div className="flex flex-col w-64 bg-white border-r">
+    <div className="flex flex-col w-64 bg-card border-r border-border">
       {/* Logo */}
-      <div className="flex items-center h-16 px-6 border-b">
-        <span className="text-xl font-bold text-gray-900">BookerBot</span>
+      <div className="flex items-center h-16 px-6 border-b border-border">
+        <div className="flex items-center gap-2">
+          <svg className="w-8 h-8 text-primary" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M16 4L4 10V22L16 28L28 22V10L16 4Z" stroke="currentColor" strokeWidth="2" fill="none"/>
+            <path d="M16 4L16 28" stroke="currentColor" strokeWidth="2"/>
+            <path d="M4 10L28 22" stroke="currentColor" strokeWidth="2"/>
+            <path d="M28 10L4 22" stroke="currentColor" strokeWidth="2"/>
+          </svg>
+          <div className="flex flex-col">
+            <span className="text-sm font-semibold text-primary">Levity</span>
+            <span className="text-lg font-bold text-foreground -mt-1">BookerBot</span>
+          </div>
+        </div>
       </div>
 
       {/* Navigation */}
@@ -61,54 +71,54 @@ export function Sidebar({ user }: SidebarProps) {
               key={item.name}
               href={item.href}
               className={cn(
-                'flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors',
+                'flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-all duration-200',
                 isActive
-                  ? 'bg-gray-100 text-gray-900'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  ? 'bg-primary/10 text-primary border border-primary/30'
+                  : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
               )}
             >
-              <item.icon className="w-5 h-5 mr-3" />
+              <item.icon className={cn('w-5 h-5 mr-3', isActive && 'text-primary')} />
               {item.name}
             </Link>
           )
         })}
       </nav>
 
-      <Separator />
-
       {/* User section */}
-      <div className="p-4 space-y-3">
+      <div className="p-4 border-t border-border space-y-3">
         <div className="flex items-center space-x-3">
           <div className="flex-shrink-0">
-            <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
-              <span className="text-sm font-medium text-gray-600">
-                {user.email?.charAt(0).toUpperCase()}
+            <div className="w-9 h-9 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center">
+              <span className="text-sm font-medium text-primary">
+                {user?.email?.charAt(0).toUpperCase() || 'A'}
               </span>
             </div>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900 truncate">
-              {user.email}
+            <p className="text-sm font-medium text-foreground truncate">
+              {user?.email || 'Admin'}
             </p>
-            <p className="text-xs text-gray-500">Admin</p>
+            <p className="text-xs text-muted-foreground">Admin</p>
           </div>
         </div>
 
         <div className="flex space-x-2">
-          <Button variant="ghost" size="sm" className="flex-1 justify-start" asChild>
+          <Button variant="ghost" size="sm" className="flex-1 justify-start text-muted-foreground hover:text-foreground" asChild>
             <Link href="/settings">
               <Settings className="w-4 h-4 mr-2" />
               Settings
             </Link>
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleSignOut}
-            className="text-gray-600 hover:text-gray-900"
-          >
-            <LogOut className="w-4 h-4" />
-          </Button>
+          {user && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSignOut}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <LogOut className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       </div>
     </div>

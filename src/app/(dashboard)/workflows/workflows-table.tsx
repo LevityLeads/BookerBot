@@ -47,81 +47,81 @@ export function WorkflowsTable({ workflows }: WorkflowsTableProps) {
 
   if (workflows.length === 0) {
     return (
-      <div className="text-center py-12 bg-white rounded-lg border">
-        <p className="text-gray-500">No workflows yet. Create your first workflow to get started.</p>
+      <div className="text-center py-12 bg-card rounded-lg border border-border">
+        <p className="text-muted-foreground">No workflows yet. Create your first workflow to get started.</p>
       </div>
     )
   }
 
   return (
     <>
-      <div className="bg-white rounded-lg border">
+      <div className="bg-card rounded-lg border border-border overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Client</TableHead>
-              <TableHead>Channel</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Created</TableHead>
+            <TableRow className="border-border hover:bg-secondary/50">
+              <TableHead className="text-muted-foreground">Name</TableHead>
+              <TableHead className="text-muted-foreground">Client</TableHead>
+              <TableHead className="text-muted-foreground">Channel</TableHead>
+              <TableHead className="text-muted-foreground">Status</TableHead>
+              <TableHead className="text-muted-foreground">Created</TableHead>
               <TableHead className="w-[50px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {workflows.map((workflow) => (
-              <TableRow key={workflow.id}>
-                <TableCell className="font-medium">
-                  <Link href={`/workflows/${workflow.id}`} className="hover:underline">
+              <TableRow key={workflow.id} className="border-border hover:bg-secondary/50">
+                <TableCell className="font-medium text-foreground">
+                  <Link href={`/workflows/${workflow.id}`} className="hover:text-primary transition-colors">
                     {workflow.name}
                   </Link>
                 </TableCell>
                 <TableCell>
                   <Link
                     href={`/clients/${workflow.client_id}`}
-                    className="text-blue-600 hover:underline"
+                    className="text-primary hover:text-primary/80 transition-colors"
                   >
                     {workflow.clients?.name || 'Unknown'}
                   </Link>
                 </TableCell>
                 <TableCell>
-                  <Badge variant="outline">
+                  <Badge variant="outline" className="border-border text-foreground">
                     {workflow.channel.toUpperCase()}
                   </Badge>
                 </TableCell>
                 <TableCell>
                   <Badge
-                    variant={
+                    className={
                       workflow.status === 'active'
-                        ? 'success'
+                        ? 'bg-green-500/20 text-green-400 border-green-500/30'
                         : workflow.status === 'paused'
-                        ? 'secondary'
-                        : 'outline'
+                        ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
+                        : 'bg-secondary text-secondary-foreground'
                     }
                   >
                     {workflow.status}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-gray-500">
+                <TableCell className="text-muted-foreground">
                   {new Date(workflow.created_at).toLocaleDateString()}
                 </TableCell>
                 <TableCell>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon">
+                      <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
                         <MoreHorizontal className="w-4 h-4" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => router.push(`/workflows/${workflow.id}`)}>
+                    <DropdownMenuContent align="end" className="bg-card border-border">
+                      <DropdownMenuItem onClick={() => router.push(`/workflows/${workflow.id}`)} className="hover:bg-secondary">
                         <Eye className="w-4 h-4 mr-2" />
                         View
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => router.push(`/workflows/${workflow.id}/edit`)}>
+                      <DropdownMenuItem onClick={() => router.push(`/workflows/${workflow.id}/edit`)} className="hover:bg-secondary">
                         <Pencil className="w-4 h-4 mr-2" />
                         Edit
                       </DropdownMenuItem>
                       {workflow.status !== 'archived' && (
-                        <DropdownMenuItem onClick={() => toggleStatus(workflow)}>
+                        <DropdownMenuItem onClick={() => toggleStatus(workflow)} className="hover:bg-secondary">
                           {workflow.status === 'active' ? (
                             <>
                               <Pause className="w-4 h-4 mr-2" />
@@ -136,7 +136,7 @@ export function WorkflowsTable({ workflows }: WorkflowsTableProps) {
                         </DropdownMenuItem>
                       )}
                       <DropdownMenuItem
-                        className="text-red-600"
+                        className="text-destructive hover:bg-destructive/10"
                         onClick={() => setDeleteWorkflow(workflow)}
                       >
                         <Trash2 className="w-4 h-4 mr-2" />

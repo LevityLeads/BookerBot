@@ -137,7 +137,7 @@ export default function EditClientPage({ params }: EditClientPageProps) {
   if (loading) {
     return (
       <div className="p-8">
-        <p>Loading...</p>
+        <p className="text-muted-foreground">Loading...</p>
       </div>
     )
   }
@@ -147,51 +147,53 @@ export default function EditClientPage({ params }: EditClientPageProps) {
       <div className="mb-6">
         <Link
           href={`/clients/${params.id}`}
-          className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700"
+          className="inline-flex items-center text-sm text-muted-foreground hover:text-primary transition-colors"
         >
           <ArrowLeft className="w-4 h-4 mr-1" />
           Back to Client
         </Link>
       </div>
 
-      <Card>
+      <Card className="bg-card border-border">
         <CardHeader>
-          <CardTitle>Edit Client</CardTitle>
+          <CardTitle className="text-foreground">Edit Client</CardTitle>
           <CardDescription>Update client details and business hours</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="name">Client Name</Label>
+                <Label htmlFor="name" className="text-foreground">Client Name</Label>
                 <Input
                   id="name"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   required
+                  className="bg-secondary border-border text-foreground"
                 />
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="brand_name">Brand Name</Label>
+                <Label htmlFor="brand_name" className="text-foreground">Brand Name</Label>
                 <Input
                   id="brand_name"
                   value={formData.brand_name}
                   onChange={(e) => setFormData({ ...formData, brand_name: e.target.value })}
                   required
+                  className="bg-secondary border-border text-foreground"
                 />
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="timezone">Timezone</Label>
+                <Label htmlFor="timezone" className="text-foreground">Timezone</Label>
                 <Select
                   value={formData.timezone}
                   onValueChange={(value) => setFormData({ ...formData, timezone: value })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="bg-secondary border-border text-foreground">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-card border-border">
                     {TIMEZONES.map((tz) => (
                       <SelectItem key={tz} value={tz}>
                         {tz}
@@ -202,7 +204,7 @@ export default function EditClientPage({ params }: EditClientPageProps) {
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="twilio_phone_number">Twilio Phone Number</Label>
+                <Label htmlFor="twilio_phone_number" className="text-foreground">Twilio Phone Number</Label>
                 <Input
                   id="twilio_phone_number"
                   placeholder="+1234567890"
@@ -210,15 +212,16 @@ export default function EditClientPage({ params }: EditClientPageProps) {
                   onChange={(e) =>
                     setFormData({ ...formData, twilio_phone_number: e.target.value })
                   }
+                  className="bg-secondary border-border text-foreground"
                 />
               </div>
             </div>
 
             <div className="space-y-4">
-              <Label>Business Hours</Label>
+              <Label className="text-foreground">Business Hours</Label>
               {DAYS.map((day) => (
                 <div key={day} className="flex items-center gap-4">
-                  <div className="w-24 capitalize">{day}</div>
+                  <div className="w-24 capitalize text-foreground">{day}</div>
                   <Button
                     type="button"
                     variant={formData.business_hours[day] ? 'default' : 'outline'}
@@ -231,14 +234,14 @@ export default function EditClientPage({ params }: EditClientPageProps) {
                     <>
                       <Input
                         type="time"
-                        className="w-32"
+                        className="w-32 bg-secondary border-border text-foreground"
                         value={formData.business_hours[day]?.start || '09:00'}
                         onChange={(e) => updateBusinessHours(day, 'start', e.target.value)}
                       />
-                      <span>to</span>
+                      <span className="text-muted-foreground">to</span>
                       <Input
                         type="time"
-                        className="w-32"
+                        className="w-32 bg-secondary border-border text-foreground"
                         value={formData.business_hours[day]?.end || '17:00'}
                         onChange={(e) => updateBusinessHours(day, 'end', e.target.value)}
                       />
@@ -249,7 +252,7 @@ export default function EditClientPage({ params }: EditClientPageProps) {
             </div>
 
             {error && (
-              <div className="text-sm text-red-600 bg-red-50 p-2 rounded">{error}</div>
+              <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/30 p-2 rounded">{error}</div>
             )}
 
             <div className="flex gap-4">

@@ -62,7 +62,7 @@ export function DeleteClientDialog({ client, open, onOpenChange }: DeleteClientD
         </DialogHeader>
 
         {error && (
-          <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
+          <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/30 p-2 rounded">
             {error}
           </div>
         )}

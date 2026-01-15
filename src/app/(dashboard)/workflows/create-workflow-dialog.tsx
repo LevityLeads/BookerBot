@@ -80,10 +80,10 @@ export function CreateWorkflowDialog({ children, clients }: CreateWorkflowDialog
               value={formData.client_id}
               onValueChange={(value) => setFormData({ ...formData, client_id: value })}
             >
-              <SelectTrigger>
+              <SelectTrigger className="bg-secondary border-border">
                 <SelectValue placeholder="Select a client" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-card border-border">
                 {clients.map((client) => (
                   <SelectItem key={client.id} value={client.id}>
                     {client.name} ({client.brand_name})
@@ -101,6 +101,7 @@ export function CreateWorkflowDialog({ children, clients }: CreateWorkflowDialog
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               required
+              className="bg-secondary border-border"
             />
           </div>
 
@@ -110,10 +111,10 @@ export function CreateWorkflowDialog({ children, clients }: CreateWorkflowDialog
               value={formData.channel}
               onValueChange={(value: 'sms' | 'whatsapp' | 'email') => setFormData({ ...formData, channel: value })}
             >
-              <SelectTrigger>
+              <SelectTrigger className="bg-secondary border-border">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-card border-border">
                 <SelectItem value="sms">SMS</SelectItem>
                 <SelectItem value="whatsapp">WhatsApp</SelectItem>
                 <SelectItem value="email">Email</SelectItem>
@@ -122,7 +123,7 @@ export function CreateWorkflowDialog({ children, clients }: CreateWorkflowDialog
           </div>
 
           {error && (
-            <div className="text-sm text-red-600 bg-red-50 p-2 rounded">{error}</div>
+            <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/30 p-2 rounded">{error}</div>
           )}
 
           <div className="flex justify-end gap-2">

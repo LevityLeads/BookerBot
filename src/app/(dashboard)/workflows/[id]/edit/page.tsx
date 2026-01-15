@@ -94,7 +94,7 @@ export default function EditWorkflowPage({ params }: EditWorkflowPageProps) {
   if (loading) {
     return (
       <div className="p-8">
-        <p>Loading...</p>
+        <p className="text-muted-foreground">Loading...</p>
       </div>
     )
   }
@@ -104,43 +104,44 @@ export default function EditWorkflowPage({ params }: EditWorkflowPageProps) {
       <div className="mb-6">
         <Link
           href={`/workflows/${params.id}`}
-          className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700"
+          className="inline-flex items-center text-sm text-muted-foreground hover:text-primary transition-colors"
         >
           <ArrowLeft className="w-4 h-4 mr-1" />
           Back to Workflow
         </Link>
       </div>
 
-      <Card>
+      <Card className="bg-card border-border">
         <CardHeader>
-          <CardTitle>Edit Workflow</CardTitle>
+          <CardTitle className="text-foreground">Edit Workflow</CardTitle>
           <CardDescription>Update workflow settings and prompt template</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="name">Workflow Name</Label>
+                <Label htmlFor="name" className="text-foreground">Workflow Name</Label>
                 <Input
                   id="name"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   required
+                  className="bg-secondary border-border text-foreground"
                 />
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="channel">Channel</Label>
+                <Label htmlFor="channel" className="text-foreground">Channel</Label>
                 <Select
                   value={formData.channel}
                   onValueChange={(value: 'sms' | 'whatsapp' | 'email') =>
                     setFormData({ ...formData, channel: value })
                   }
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="bg-secondary border-border text-foreground">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-card border-border">
                     <SelectItem value="sms">SMS</SelectItem>
                     <SelectItem value="whatsapp">WhatsApp</SelectItem>
                     <SelectItem value="email">Email</SelectItem>
@@ -149,17 +150,17 @@ export default function EditWorkflowPage({ params }: EditWorkflowPageProps) {
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="status">Status</Label>
+                <Label htmlFor="status" className="text-foreground">Status</Label>
                 <Select
                   value={formData.status}
                   onValueChange={(value: 'active' | 'paused' | 'archived') =>
                     setFormData({ ...formData, status: value })
                   }
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="bg-secondary border-border text-foreground">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-card border-border">
                     <SelectItem value="active">Active</SelectItem>
                     <SelectItem value="paused">Paused</SelectItem>
                     <SelectItem value="archived">Archived</SelectItem>
@@ -168,7 +169,7 @@ export default function EditWorkflowPage({ params }: EditWorkflowPageProps) {
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="instructions">AI Instructions</Label>
+                <Label htmlFor="instructions" className="text-foreground">AI Instructions</Label>
                 <Textarea
                   id="instructions"
                   placeholder="Enter AI instructions for this workflow..."
@@ -177,12 +178,12 @@ export default function EditWorkflowPage({ params }: EditWorkflowPageProps) {
                     setFormData({ ...formData, instructions: e.target.value })
                   }
                   rows={6}
-                  className="font-mono text-sm"
+                  className="font-mono text-sm bg-secondary border-border text-foreground"
                 />
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="initial_message_template">Initial Message Template</Label>
+                <Label htmlFor="initial_message_template" className="text-foreground">Initial Message Template</Label>
                 <Textarea
                   id="initial_message_template"
                   placeholder="Enter the initial message template..."
@@ -191,16 +192,16 @@ export default function EditWorkflowPage({ params }: EditWorkflowPageProps) {
                     setFormData({ ...formData, initial_message_template: e.target.value })
                   }
                   rows={4}
-                  className="font-mono text-sm"
+                  className="font-mono text-sm bg-secondary border-border text-foreground"
                 />
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-muted-foreground">
                   Use variables like {'{first_name}'}, {'{brand_name}'}, etc.
                 </p>
               </div>
             </div>
 
             {error && (
-              <div className="text-sm text-red-600 bg-red-50 p-2 rounded">{error}</div>
+              <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/30 p-2 rounded">{error}</div>
             )}
 
             <div className="flex gap-4">

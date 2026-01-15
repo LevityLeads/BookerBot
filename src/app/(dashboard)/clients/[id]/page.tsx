@@ -58,7 +58,7 @@ export default async function ClientPage({ params }: ClientPageProps) {
       <div className="mb-6">
         <Link
           href="/clients"
-          className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700"
+          className="inline-flex items-center text-sm text-muted-foreground hover:text-primary transition-colors"
         >
           <ArrowLeft className="w-4 h-4 mr-1" />
           Back to Clients
@@ -67,8 +67,8 @@ export default async function ClientPage({ params }: ClientPageProps) {
 
       <div className="flex items-start justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{client.name}</h1>
-          <p className="text-gray-500">{client.brand_name}</p>
+          <h1 className="text-2xl font-bold text-foreground">{client.name}</h1>
+          <p className="text-muted-foreground">{client.brand_name}</p>
         </div>
         <Button asChild>
           <Link href={`/clients/${client.id}/edit`}>
@@ -79,68 +79,68 @@ export default async function ClientPage({ params }: ClientPageProps) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <Card>
+        <Card className="bg-card border-border">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">Total Contacts</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Contacts</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{contactStats.total}</div>
+            <div className="text-3xl font-bold text-foreground">{contactStats.total}</div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-card border-border">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">Booked</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Booked</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-green-600">{contactStats.booked}</div>
+            <div className="text-3xl font-bold text-green-400">{contactStats.booked}</div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-card border-border">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">In Conversation</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">In Conversation</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-blue-600">{contactStats.inConversation}</div>
+            <div className="text-3xl font-bold text-primary">{contactStats.inConversation}</div>
           </CardContent>
         </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
+        <Card className="bg-card border-border">
           <CardHeader>
-            <CardTitle>Client Details</CardTitle>
+            <CardTitle className="text-foreground">Client Details</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center gap-3">
-              <Clock className="w-5 h-5 text-gray-400" />
+              <Clock className="w-5 h-5 text-primary" />
               <div>
-                <p className="text-sm text-gray-500">Timezone</p>
-                <p className="font-medium">{client.timezone}</p>
+                <p className="text-sm text-muted-foreground">Timezone</p>
+                <p className="font-medium text-foreground">{client.timezone}</p>
               </div>
             </div>
 
             {client.twilio_phone_number && (
               <div className="flex items-center gap-3">
-                <Phone className="w-5 h-5 text-gray-400" />
+                <Phone className="w-5 h-5 text-primary" />
                 <div>
-                  <p className="text-sm text-gray-500">Twilio Phone</p>
-                  <p className="font-medium">{client.twilio_phone_number}</p>
+                  <p className="text-sm text-muted-foreground">Twilio Phone</p>
+                  <p className="font-medium text-foreground">{client.twilio_phone_number}</p>
                 </div>
               </div>
             )}
 
-            <Separator />
+            <Separator className="bg-border" />
 
             <div>
               <div className="flex items-center gap-2 mb-3">
-                <Calendar className="w-5 h-5 text-gray-400" />
-                <p className="font-medium">Business Hours</p>
+                <Calendar className="w-5 h-5 text-primary" />
+                <p className="font-medium text-foreground">Business Hours</p>
               </div>
               <div className="grid grid-cols-2 gap-2 text-sm">
                 {Object.entries(businessHours).map(([day, hours]) => (
                   <div key={day} className="flex justify-between">
-                    <span className="capitalize text-gray-500">{day}</span>
-                    <span>
+                    <span className="capitalize text-muted-foreground">{day}</span>
+                    <span className="text-foreground">
                       {hours ? `${hours.start} - ${hours.end}` : 'Closed'}
                     </span>
                   </div>
@@ -150,10 +150,10 @@ export default async function ClientPage({ params }: ClientPageProps) {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-card border-border">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle>Workflows</CardTitle>
+              <CardTitle className="text-foreground">Workflows</CardTitle>
               <CardDescription>{workflows?.length || 0} workflows</CardDescription>
             </div>
             <Button size="sm" asChild>
@@ -162,17 +162,17 @@ export default async function ClientPage({ params }: ClientPageProps) {
           </CardHeader>
           <CardContent>
             {!workflows || workflows.length === 0 ? (
-              <p className="text-gray-500 text-sm">No workflows yet</p>
+              <p className="text-muted-foreground text-sm">No workflows yet</p>
             ) : (
               <div className="space-y-3">
                 {workflows.slice(0, 5).map((workflow) => (
                   <div
                     key={workflow.id}
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                    className="flex items-center justify-between p-3 bg-secondary rounded-lg border border-border"
                   >
                     <div>
-                      <p className="font-medium">{workflow.name}</p>
-                      <p className="text-sm text-gray-500">{workflow.channel}</p>
+                      <p className="font-medium text-foreground">{workflow.name}</p>
+                      <p className="text-sm text-muted-foreground">{workflow.channel}</p>
                     </div>
                     <Badge
                       variant={workflow.status === 'active' ? 'success' : 'secondary'}

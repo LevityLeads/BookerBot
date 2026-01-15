@@ -98,6 +98,7 @@ export function CreateClientDialog({ children }: CreateClientDialogProps) {
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 required
+                className="bg-secondary border-border"
               />
             </div>
 
@@ -109,8 +110,9 @@ export function CreateClientDialog({ children }: CreateClientDialogProps) {
                 value={formData.brand_name}
                 onChange={(e) => setFormData({ ...formData, brand_name: e.target.value })}
                 required
+                className="bg-secondary border-border"
               />
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted-foreground">
                 This name will be used in outreach messages
               </p>
             </div>
@@ -121,10 +123,10 @@ export function CreateClientDialog({ children }: CreateClientDialogProps) {
                 value={formData.timezone}
                 onValueChange={(value) => setFormData({ ...formData, timezone: value })}
               >
-                <SelectTrigger>
+                <SelectTrigger className="bg-secondary border-border">
                   <SelectValue placeholder="Select timezone" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-card border-border">
                   {TIMEZONES.map((tz) => (
                     <SelectItem key={tz} value={tz}>
                       {tz}
@@ -135,7 +137,7 @@ export function CreateClientDialog({ children }: CreateClientDialogProps) {
             </div>
 
             {error && (
-              <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
+              <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/30 p-2 rounded">
                 {error}
               </div>
             )}

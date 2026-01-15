@@ -46,7 +46,7 @@ export default async function WorkflowPage({ params }: WorkflowPageProps) {
       <div className="mb-6">
         <Link
           href="/workflows"
-          className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700"
+          className="inline-flex items-center text-sm text-muted-foreground hover:text-primary transition-colors"
         >
           <ArrowLeft className="w-4 h-4 mr-1" />
           Back to Workflows
@@ -56,7 +56,7 @@ export default async function WorkflowPage({ params }: WorkflowPageProps) {
       <div className="flex items-start justify-between mb-8">
         <div>
           <div className="flex items-center gap-3 mb-2">
-            <h1 className="text-2xl font-bold text-gray-900">{workflow.name}</h1>
+            <h1 className="text-2xl font-bold text-foreground">{workflow.name}</h1>
             <Badge
               variant={
                 workflow.status === 'active'
@@ -69,8 +69,8 @@ export default async function WorkflowPage({ params }: WorkflowPageProps) {
               {workflow.status}
             </Badge>
           </div>
-          <p className="text-gray-500">
-            <Link href={`/clients/${workflow.client_id}`} className="hover:underline">
+          <p className="text-muted-foreground">
+            <Link href={`/clients/${workflow.client_id}`} className="hover:text-primary transition-colors">
               {workflow.clients?.name}
             </Link>
             {' - '}
@@ -86,73 +86,73 @@ export default async function WorkflowPage({ params }: WorkflowPageProps) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <Card>
+        <Card className="bg-card border-border">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">Total Contacts</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Contacts</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
-              <Users className="w-5 h-5 text-gray-400" />
-              <span className="text-3xl font-bold">{contactStats.total}</span>
+              <Users className="w-5 h-5 text-primary" />
+              <span className="text-3xl font-bold text-foreground">{contactStats.total}</span>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-card border-border">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">Booked</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Booked</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
-              <CheckCircle className="w-5 h-5 text-green-500" />
-              <span className="text-3xl font-bold text-green-600">{contactStats.booked}</span>
+              <CheckCircle className="w-5 h-5 text-green-400" />
+              <span className="text-3xl font-bold text-green-400">{contactStats.booked}</span>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-card border-border">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">In Conversation</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">In Conversation</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
-              <MessageSquare className="w-5 h-5 text-blue-500" />
-              <span className="text-3xl font-bold text-blue-600">{contactStats.inConversation}</span>
+              <MessageSquare className="w-5 h-5 text-primary" />
+              <span className="text-3xl font-bold text-primary">{contactStats.inConversation}</span>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-card border-border">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">Pending</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Pending</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
-              <Mail className="w-5 h-5 text-yellow-500" />
-              <span className="text-3xl font-bold text-yellow-600">{contactStats.pending}</span>
+              <Mail className="w-5 h-5 text-yellow-400" />
+              <span className="text-3xl font-bold text-yellow-400">{contactStats.pending}</span>
             </div>
           </CardContent>
         </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
+        <Card className="bg-card border-border">
           <CardHeader>
-            <CardTitle>Workflow Details</CardTitle>
+            <CardTitle className="text-foreground">Workflow Details</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <p className="text-sm text-gray-500">Channel</p>
-              <p className="font-medium flex items-center gap-2">
-                {workflow.channel === 'sms' && <MessageSquare className="w-4 h-4" />}
-                {workflow.channel === 'whatsapp' && <Phone className="w-4 h-4" />}
-                {workflow.channel === 'email' && <Mail className="w-4 h-4" />}
+              <p className="text-sm text-muted-foreground">Channel</p>
+              <p className="font-medium text-foreground flex items-center gap-2">
+                {workflow.channel === 'sms' && <MessageSquare className="w-4 h-4 text-primary" />}
+                {workflow.channel === 'whatsapp' && <Phone className="w-4 h-4 text-primary" />}
+                {workflow.channel === 'email' && <Mail className="w-4 h-4 text-primary" />}
                 {workflow.channel.toUpperCase()}
               </p>
             </div>
 
-            <Separator />
+            <Separator className="bg-border" />
 
             <div>
-              <p className="text-sm text-gray-500">Created</p>
-              <p className="font-medium">
+              <p className="text-sm text-muted-foreground">Created</p>
+              <p className="font-medium text-foreground">
                 {new Date(workflow.created_at).toLocaleDateString('en-US', {
                   year: 'numeric',
                   month: 'long',
@@ -162,8 +162,8 @@ export default async function WorkflowPage({ params }: WorkflowPageProps) {
             </div>
 
             <div>
-              <p className="text-sm text-gray-500">Last Updated</p>
-              <p className="font-medium">
+              <p className="text-sm text-muted-foreground">Last Updated</p>
+              <p className="font-medium text-foreground">
                 {new Date(workflow.updated_at).toLocaleDateString('en-US', {
                   year: 'numeric',
                   month: 'long',
@@ -174,21 +174,21 @@ export default async function WorkflowPage({ params }: WorkflowPageProps) {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-card border-border">
           <CardHeader>
-            <CardTitle>AI Instructions</CardTitle>
+            <CardTitle className="text-foreground">AI Instructions</CardTitle>
             <CardDescription>Instructions for the AI assistant</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <p className="text-sm text-gray-500 mb-2">System Instructions</p>
-              <pre className="text-sm bg-gray-50 p-4 rounded-lg whitespace-pre-wrap overflow-auto max-h-40">
+              <p className="text-sm text-muted-foreground mb-2">System Instructions</p>
+              <pre className="text-sm text-foreground bg-secondary border border-border p-4 rounded-lg whitespace-pre-wrap overflow-auto max-h-40">
                 {workflow.instructions || 'No instructions configured.'}
               </pre>
             </div>
             <div>
-              <p className="text-sm text-gray-500 mb-2">Initial Message Template</p>
-              <pre className="text-sm bg-gray-50 p-4 rounded-lg whitespace-pre-wrap overflow-auto max-h-40">
+              <p className="text-sm text-muted-foreground mb-2">Initial Message Template</p>
+              <pre className="text-sm text-foreground bg-secondary border border-border p-4 rounded-lg whitespace-pre-wrap overflow-auto max-h-40">
                 {workflow.initial_message_template || 'No template configured.'}
               </pre>
             </div>
