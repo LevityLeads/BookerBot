@@ -201,6 +201,7 @@ export type AIModel =
   | 'claude-3-haiku-20240307'
   | 'claude-3-5-haiku-20241022'
   | 'claude-3-5-sonnet-20241022'
+  | 'claude-opus-4-5-20251101'
 
 export interface MessageForPrompt {
   role: 'assistant' | 'user'

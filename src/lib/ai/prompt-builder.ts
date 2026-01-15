@@ -132,17 +132,16 @@ ${context.qualification.criteriaUnknown.length > 0 ? `Still unknown: ${context.q
   }
 
   private selectModel(channel: 'sms' | 'whatsapp' | 'email'): AIModel {
-    // Use Haiku for speed in SMS (time-sensitive)
-    // Could use Sonnet for email where longer responses are OK
+    // Use Opus 4.5 for best quality across all channels
     switch (channel) {
       case 'sms':
-        return 'claude-3-5-haiku-20241022'
+        return 'claude-opus-4-5-20251101'
       case 'whatsapp':
-        return 'claude-3-5-haiku-20241022'
+        return 'claude-opus-4-5-20251101'
       case 'email':
-        return 'claude-3-5-haiku-20241022' // Could upgrade to Sonnet
+        return 'claude-opus-4-5-20251101'
       default:
-        return 'claude-3-5-haiku-20241022'
+        return 'claude-opus-4-5-20251101'
     }
   }
 
