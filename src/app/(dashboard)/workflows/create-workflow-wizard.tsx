@@ -86,6 +86,12 @@ export function CreateWorkflowWizard({ children, clients }: CreateWorkflowWizard
       return
     }
 
+    // Auto-add https:// if no protocol specified
+    let url = basics.url.trim()
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = 'https://' + url
+    }
+
     setError(null)
     setStep('researching')
 
@@ -94,7 +100,7 @@ export function CreateWorkflowWizard({ children, clients }: CreateWorkflowWizard
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          url: basics.url,
+          url,
           goal: basics.goal,
           channel: basics.channel
         })
@@ -273,8 +279,8 @@ ${editedFields.donts.map(d => `- ${d}`).join('\n')}
               </Label>
               <Input
                 id="url"
-                type="url"
-                placeholder="https://example.com"
+                type="text"
+                placeholder="example.com or https://example.com"
                 value={basics.url}
                 onChange={(e) => setBasics({ ...basics, url: e.target.value })}
               />
