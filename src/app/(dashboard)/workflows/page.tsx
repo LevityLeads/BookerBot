@@ -39,8 +39,8 @@ export default async function WorkflowsPage({
     <div className="p-8">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Workflows</h1>
-          <p className="text-gray-500">Manage your automation workflows</p>
+          <h1 className="text-2xl font-bold text-foreground">Workflows</h1>
+          <p className="text-muted-foreground">Manage your automation workflows</p>
         </div>
         <CreateWorkflowDialog clients={typedClients}>
           <Button>
