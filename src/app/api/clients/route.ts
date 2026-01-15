@@ -15,10 +15,9 @@ interface CreateClientBody {
 export async function GET() {
   const supabase = createClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  // Auth disabled for now
+  // const { data: { user } } = await supabase.auth.getUser()
+  // if (!user) { return NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
 
   const { data: clients, error } = await supabase
     .from('clients')
@@ -36,10 +35,9 @@ export async function GET() {
 export async function POST(request: Request) {
   const supabase = createClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  // Auth disabled for now
+  // const { data: { user } } = await supabase.auth.getUser()
+  // if (!user) { return NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
 
   try {
     const body = await request.json() as CreateClientBody

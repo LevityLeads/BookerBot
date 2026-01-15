@@ -15,10 +15,9 @@ interface CreateWorkflowBody {
 export async function GET(request: Request) {
   const supabase = createClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  // Auth disabled for now
+  // const { data: { user } } = await supabase.auth.getUser()
+  // if (!user) { return NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
 
   const { searchParams } = new URL(request.url)
   const clientId = searchParams.get('client_id')
@@ -45,10 +44,9 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const supabase = createClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  // Auth disabled for now
+  // const { data: { user } } = await supabase.auth.getUser()
+  // if (!user) { return NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
 
   try {
     const body = await request.json() as CreateWorkflowBody

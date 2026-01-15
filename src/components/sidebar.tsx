@@ -29,7 +29,7 @@ const navigation = [
 ]
 
 interface SidebarProps {
-  user: User
+  user?: User | null
 }
 
 export function Sidebar({ user }: SidebarProps) {
@@ -82,13 +82,13 @@ export function Sidebar({ user }: SidebarProps) {
           <div className="flex-shrink-0">
             <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
               <span className="text-sm font-medium text-gray-600">
-                {user.email?.charAt(0).toUpperCase()}
+                {user?.email?.charAt(0).toUpperCase() || 'A'}
               </span>
             </div>
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-gray-900 truncate">
-              {user.email}
+              {user?.email || 'Admin'}
             </p>
             <p className="text-xs text-gray-500">Admin</p>
           </div>
@@ -101,14 +101,16 @@ export function Sidebar({ user }: SidebarProps) {
               Settings
             </Link>
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleSignOut}
-            className="text-gray-600 hover:text-gray-900"
-          >
-            <LogOut className="w-4 h-4" />
-          </Button>
+          {user && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSignOut}
+              className="text-gray-600 hover:text-gray-900"
+            >
+              <LogOut className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       </div>
     </div>

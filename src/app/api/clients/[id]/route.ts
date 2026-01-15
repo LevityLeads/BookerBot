@@ -18,10 +18,9 @@ export async function GET(
 ) {
   const supabase = createClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  // Auth disabled for now
+  // const { data: { user } } = await supabase.auth.getUser()
+  // if (!user) { return NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
 
   const { data: client, error } = await supabase
     .from('clients')
@@ -43,10 +42,9 @@ export async function PUT(
 ) {
   const supabase = createClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  // Auth disabled for now
+  // const { data: { user } } = await supabase.auth.getUser()
+  // if (!user) { return NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
 
   try {
     const body = await request.json() as UpdateClientBody
@@ -85,10 +83,9 @@ export async function DELETE(
 ) {
   const supabase = createClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  // Auth disabled for now
+  // const { data: { user } } = await supabase.auth.getUser()
+  // if (!user) { return NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
 
   const { error } = await supabase
     .from('clients')
