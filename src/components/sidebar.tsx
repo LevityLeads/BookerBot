@@ -44,10 +44,10 @@ export function Sidebar({ user }: SidebarProps) {
   }
 
   return (
-    <div className="flex flex-col w-64 bg-white border-r">
+    <div className="flex flex-col w-64 bg-card border-r border-border">
       {/* Logo */}
-      <div className="flex items-center h-16 px-6 border-b">
-        <span className="text-xl font-bold text-gray-900">BookerBot</span>
+      <div className="flex items-center h-16 px-6 border-b border-border">
+        <span className="text-xl font-bold text-foreground">BookerBot</span>
       </div>
 
       {/* Navigation */}
@@ -63,8 +63,8 @@ export function Sidebar({ user }: SidebarProps) {
               className={cn(
                 'flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors',
                 isActive
-                  ? 'bg-gray-100 text-gray-900'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                  ? 'bg-accent text-accent-foreground'
+                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
               )}
             >
               <item.icon className="w-5 h-5 mr-3" />
@@ -80,17 +80,17 @@ export function Sidebar({ user }: SidebarProps) {
       <div className="p-4 space-y-3">
         <div className="flex items-center space-x-3">
           <div className="flex-shrink-0">
-            <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
-              <span className="text-sm font-medium text-gray-600">
+            <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center">
+              <span className="text-sm font-medium text-accent-foreground">
                 {user?.email?.charAt(0).toUpperCase() || 'A'}
               </span>
             </div>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900 truncate">
+            <p className="text-sm font-medium text-foreground truncate">
               {user?.email || 'Admin'}
             </p>
-            <p className="text-xs text-gray-500">Admin</p>
+            <p className="text-xs text-muted-foreground">Admin</p>
           </div>
         </div>
 
@@ -106,7 +106,7 @@ export function Sidebar({ user }: SidebarProps) {
               variant="ghost"
               size="sm"
               onClick={handleSignOut}
-              className="text-gray-600 hover:text-gray-900"
+              className="text-muted-foreground hover:text-foreground"
             >
               <LogOut className="w-4 h-4" />
             </Button>
