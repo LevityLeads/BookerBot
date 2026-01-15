@@ -37,14 +37,14 @@ interface ContactsTableProps {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  pending: 'bg-gray-100 text-gray-800',
-  contacted: 'bg-blue-100 text-blue-800',
-  in_conversation: 'bg-yellow-100 text-yellow-800',
-  qualified: 'bg-purple-100 text-purple-800',
-  booked: 'bg-green-100 text-green-800',
-  opted_out: 'bg-red-100 text-red-800',
-  unresponsive: 'bg-orange-100 text-orange-800',
-  handed_off: 'bg-pink-100 text-pink-800',
+  pending: 'bg-secondary text-secondary-foreground',
+  contacted: 'bg-blue-500/20 text-blue-400',
+  in_conversation: 'bg-yellow-500/20 text-yellow-400',
+  qualified: 'bg-purple-500/20 text-purple-400',
+  booked: 'bg-green-500/20 text-green-400',
+  opted_out: 'bg-red-500/20 text-red-400',
+  unresponsive: 'bg-orange-500/20 text-orange-400',
+  handed_off: 'bg-pink-500/20 text-pink-400',
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -93,10 +93,10 @@ export function ContactsTable({ contacts }: ContactsTableProps) {
 
   if (contacts.length === 0) {
     return (
-      <div className="text-center py-12 bg-white rounded-lg border">
-        <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-        <p className="text-gray-500 mb-2">No contacts found</p>
-        <p className="text-sm text-gray-400">Add contacts manually or import from CSV</p>
+      <div className="text-center py-12 bg-card rounded-lg border border-border">
+        <MessageSquare className="w-12 h-12 text-muted-foreground/50 mx-auto mb-4" />
+        <p className="text-muted-foreground mb-2">No contacts found</p>
+        <p className="text-sm text-muted-foreground/70">Add contacts manually or import from CSV</p>
       </div>
     )
   }
@@ -111,7 +111,7 @@ export function ContactsTable({ contacts }: ContactsTableProps) {
         />
       )}
 
-      <div className="bg-white rounded-lg border">
+      <div className="bg-card rounded-lg border border-border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -140,7 +140,7 @@ export function ContactsTable({ contacts }: ContactsTableProps) {
                   />
                 </TableCell>
                 <TableCell className="font-medium">
-                  <Link href={`/contacts/${contact.id}`} className="hover:underline">
+                  <Link href={`/contacts/${contact.id}`} className="hover:underline text-foreground">
                     {contact.first_name || contact.last_name
                       ? `${contact.first_name || ''} ${contact.last_name || ''}`.trim()
                       : 'Unknown'}
@@ -149,13 +149,13 @@ export function ContactsTable({ contacts }: ContactsTableProps) {
                 <TableCell>
                   <div className="text-sm">
                     {contact.phone && (
-                      <div className="flex items-center gap-1 text-gray-600">
+                      <div className="flex items-center gap-1 text-muted-foreground">
                         <Phone className="w-3 h-3" />
                         {contact.phone}
                       </div>
                     )}
                     {contact.email && (
-                      <div className="flex items-center gap-1 text-gray-600">
+                      <div className="flex items-center gap-1 text-muted-foreground">
                         <Mail className="w-3 h-3" />
                         {contact.email}
                       </div>
@@ -164,12 +164,12 @@ export function ContactsTable({ contacts }: ContactsTableProps) {
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
-                    <span className="text-gray-400">
+                    <span className="text-muted-foreground">
                       {CHANNEL_ICONS[contact.workflows.channel]}
                     </span>
                     <div>
-                      <div className="text-sm font-medium">{contact.workflows.name}</div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-sm font-medium text-foreground">{contact.workflows.name}</div>
+                      <div className="text-xs text-muted-foreground">
                         {contact.workflows.clients.name}
                       </div>
                     </div>
@@ -180,10 +180,10 @@ export function ContactsTable({ contacts }: ContactsTableProps) {
                     {STATUS_LABELS[contact.status]}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-gray-500">
+                <TableCell className="text-muted-foreground">
                   {contact.follow_ups_sent} / sent
                 </TableCell>
-                <TableCell className="text-gray-500">
+                <TableCell className="text-muted-foreground">
                   {new Date(contact.created_at).toLocaleDateString()}
                 </TableCell>
                 <TableCell>
@@ -204,7 +204,7 @@ export function ContactsTable({ contacts }: ContactsTableProps) {
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
-                        className="text-red-600"
+                        className="text-red-400"
                         onClick={() => setDeleteContact(contact)}
                       >
                         <Trash2 className="w-4 h-4 mr-2" />

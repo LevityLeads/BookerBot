@@ -33,15 +33,15 @@ export function ClientsTable({ clients }: ClientsTableProps) {
 
   if (clients.length === 0) {
     return (
-      <div className="text-center py-12 bg-white rounded-lg border">
-        <p className="text-gray-500">No clients yet. Create your first client to get started.</p>
+      <div className="text-center py-12 bg-card rounded-lg border border-border">
+        <p className="text-muted-foreground">No clients yet. Create your first client to get started.</p>
       </div>
     )
   }
 
   return (
     <>
-      <div className="bg-white rounded-lg border">
+      <div className="bg-card rounded-lg border border-border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -66,7 +66,7 @@ export function ClientsTable({ clients }: ClientsTableProps) {
                   <Badge variant="secondary">{client.timezone}</Badge>
                 </TableCell>
                 <TableCell>{client.workflows?.[0]?.count || 0}</TableCell>
-                <TableCell className="text-gray-500">
+                <TableCell className="text-muted-foreground">
                   {new Date(client.created_at).toLocaleDateString()}
                 </TableCell>
                 <TableCell>

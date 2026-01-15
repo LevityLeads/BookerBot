@@ -77,8 +77,8 @@ export default async function ContactsPage({
     <div className="p-8">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Contacts</h1>
-          <p className="text-gray-500">
+          <h1 className="text-2xl font-bold text-foreground">Contacts</h1>
+          <p className="text-muted-foreground">
             {count !== null ? `${count} contact${count !== 1 ? 's' : ''}` : 'Manage your contacts'}
           </p>
         </div>
