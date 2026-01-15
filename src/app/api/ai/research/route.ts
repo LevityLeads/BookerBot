@@ -38,17 +38,15 @@ export async function POST(request: Request) {
       )
     }
 
-    // Perform brand research
+    // Perform brand research using Opus 4.5
     const result = await researchBrand({
       url: body.url,
       goal: body.goal,
       channel: body.channel
     })
 
-    return NextResponse.json({
-      success: true,
-      research: result
-    })
+    // Return the result directly (wizard expects BrandResearchResult shape)
+    return NextResponse.json(result)
   } catch (error) {
     console.error('Brand research error:', error)
 
