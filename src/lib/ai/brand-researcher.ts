@@ -209,7 +209,7 @@ Please analyze this business and provide the structured JSON response.`
 
   try {
     const response = await client.messages.create({
-      model: 'claude-3-5-sonnet-20241022', // Use Sonnet for better analysis
+      model: 'claude-opus-4-5-20251101', // Use Opus 4.5 for best analysis
       max_tokens: 2000,
       temperature: 0.3,
       system: systemPrompt,
