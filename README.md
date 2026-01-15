@@ -1,36 +1,76 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# BookerBot
 
-## Getting Started
+AI-powered appointment booking automation platform by Levity Leads.
 
-First, run the development server:
+## Deployment
+
+**Production URL:** https://booker-bot.vercel.app
+
+**Deployment is automatic from the `main` branch.** Any commits pushed to `main` will auto-deploy to Vercel within ~1-2 minutes.
+
+### Branching Strategy
+
+| Branch | Purpose |
+|--------|---------|
+| `main` | Production - auto-deploys to Vercel |
+| `claude/*` | Feature branches - create PR to merge into main |
+
+### How to Deploy Changes
+
+1. Make your changes on a feature branch or directly on `main`
+2. If on a feature branch, create a PR and merge to `main`
+3. Vercel automatically deploys from `main`
+
+**Do NOT leave changes on feature branches** - they won't be deployed until merged to `main`.
+
+---
+
+## Development
+
+### Prerequisites
+
+- Node.js 18+
+- npm
+- Supabase account (for database)
+
+### Setup
 
 ```bash
+# Install dependencies
+npm install
+
+# Run development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) to view the app.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Environment Variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Copy `.env.example` to `.env.local` and configure:
 
-## Learn More
+```
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+```
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Tech Stack
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- **Frontend:** Next.js 14, React 18, TypeScript
+- **Styling:** Tailwind CSS, Radix UI
+- **Database:** Supabase (PostgreSQL)
+- **Auth:** Supabase Auth
+- **Hosting:** Vercel
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Documentation
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+See [docs/PRD.md](docs/PRD.md) for the full Product Requirements Document including:
+- Feature specifications
+- Database schema
+- Sprint roadmap
+- Technical architecture
