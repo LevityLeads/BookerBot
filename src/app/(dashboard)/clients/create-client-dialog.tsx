@@ -47,6 +47,7 @@ export function CreateClientDialog({ children }: CreateClientDialogProps) {
   const [formData, setFormData] = useState({
     name: '',
     brand_name: '',
+    brand_url: '',
     timezone: 'Europe/London',
   })
 
@@ -67,8 +68,12 @@ export function CreateClientDialog({ children }: CreateClientDialogProps) {
         throw new Error(data.error || 'Failed to create client')
       }
 
+      const data = await response.json()
       setOpen(false)
-      setFormData({ name: '', brand_name: '', timezone: 'Europe/London' })
+      setFormData({ name: '', brand_name: '', brand_url: '', timezone: 'Europe/London' })
+
+      // Redirect to edit page to run brand research
+      router.push(`/clients/${data.id}/edit`)
       router.refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
@@ -110,8 +115,22 @@ export function CreateClientDialog({ children }: CreateClientDialogProps) {
                 onChange={(e) => setFormData({ ...formData, brand_name: e.target.value })}
                 required
               />
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted-foreground">
                 This name will be used in outreach messages
+              </p>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="brand_url">Website URL</Label>
+              <Input
+                id="brand_url"
+                type="text"
+                placeholder="example.com"
+                value={formData.brand_url}
+                onChange={(e) => setFormData({ ...formData, brand_url: e.target.value })}
+              />
+              <p className="text-xs text-muted-foreground">
+                We&apos;ll use AI to research your brand from this URL
               </p>
             </div>
 
@@ -135,7 +154,7 @@ export function CreateClientDialog({ children }: CreateClientDialogProps) {
             </div>
 
             {error && (
-              <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
+              <div className="text-sm text-red-400 bg-red-500/10 p-2 rounded">
                 {error}
               </div>
             )}

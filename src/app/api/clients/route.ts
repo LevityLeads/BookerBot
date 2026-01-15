@@ -5,6 +5,7 @@ import { BusinessHours } from '@/types/database'
 interface CreateClientBody {
   name: string
   brand_name: string
+  brand_url?: string
   brand_logo_url?: string
   timezone?: string
   business_hours?: BusinessHours
@@ -42,9 +43,16 @@ export async function POST(request: Request) {
   try {
     const body = await request.json() as CreateClientBody
 
+    // Auto-add https:// if URL provided without protocol
+    let brandUrl = body.brand_url || null
+    if (brandUrl && !brandUrl.startsWith('http://') && !brandUrl.startsWith('https://')) {
+      brandUrl = 'https://' + brandUrl
+    }
+
     const insertData = {
       name: body.name,
       brand_name: body.brand_name,
+      brand_url: brandUrl,
       brand_logo_url: body.brand_logo_url || null,
       timezone: body.timezone || 'Europe/London',
       business_hours: body.business_hours || {
