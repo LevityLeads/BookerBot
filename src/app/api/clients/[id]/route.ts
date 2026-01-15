@@ -1,5 +1,15 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { BusinessHours } from '@/types/database'
+
+interface UpdateClientBody {
+  name: string
+  brand_name: string
+  brand_logo_url?: string
+  timezone: string
+  business_hours: BusinessHours
+  twilio_phone_number?: string
+}
 
 // GET /api/clients/[id] - Get a single client
 export async function GET(
@@ -39,18 +49,21 @@ export async function PUT(
   }
 
   try {
-    const body = await request.json()
+    const body = await request.json() as UpdateClientBody
 
-    const { data: client, error } = await supabase
+    const updateData = {
+      name: body.name,
+      brand_name: body.brand_name,
+      brand_logo_url: body.brand_logo_url,
+      timezone: body.timezone,
+      business_hours: body.business_hours,
+      twilio_phone_number: body.twilio_phone_number,
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: client, error } = await (supabase as any)
       .from('clients')
-      .update({
-        name: body.name,
-        brand_name: body.brand_name,
-        brand_logo_url: body.brand_logo_url,
-        timezone: body.timezone,
-        business_hours: body.business_hours,
-        twilio_phone_number: body.twilio_phone_number,
-      })
+      .update(updateData)
       .eq('id', params.id)
       .select()
       .single()
