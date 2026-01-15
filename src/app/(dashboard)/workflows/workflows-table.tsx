@@ -16,10 +16,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Badge } from '@/components/ui/badge'
-import { MoreHorizontal, Pencil, Trash2, Eye, Play, Pause } from 'lucide-react'
+import { MoreHorizontal, Pencil, Trash2, Eye, Play, Pause, Zap } from 'lucide-react'
 import { Client, Workflow } from '@/types/database'
 import { DeleteWorkflowDialog } from './delete-workflow-dialog'
 
@@ -47,15 +48,17 @@ export function WorkflowsTable({ workflows }: WorkflowsTableProps) {
 
   if (workflows.length === 0) {
     return (
-      <div className="text-center py-12 bg-white rounded-lg border">
-        <p className="text-gray-500">No workflows yet. Create your first workflow to get started.</p>
+      <div className="text-center py-12 bg-card rounded-2xl border border-border/50">
+        <Zap className="w-12 h-12 text-muted-foreground/50 mx-auto mb-4" />
+        <p className="text-muted-foreground mb-2">No workflows yet</p>
+        <p className="text-sm text-muted-foreground/70">Create your first workflow to get started</p>
       </div>
     )
   }
 
   return (
     <>
-      <div className="bg-white rounded-lg border">
+      <div className="bg-card rounded-2xl border border-border/50 overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
@@ -71,20 +74,20 @@ export function WorkflowsTable({ workflows }: WorkflowsTableProps) {
             {workflows.map((workflow) => (
               <TableRow key={workflow.id}>
                 <TableCell className="font-medium">
-                  <Link href={`/workflows/${workflow.id}`} className="hover:underline">
+                  <Link href={`/workflows/${workflow.id}`} className="text-foreground hover:text-cyan-400 transition-colors">
                     {workflow.name}
                   </Link>
                 </TableCell>
                 <TableCell>
                   <Link
                     href={`/clients/${workflow.client_id}`}
-                    className="text-blue-600 hover:underline"
+                    className="text-cyan-400 hover:text-cyan-300 transition-colors"
                   >
                     {workflow.clients?.name || 'Unknown'}
                   </Link>
                 </TableCell>
                 <TableCell>
-                  <Badge variant="outline">
+                  <Badge variant="secondary">
                     {workflow.channel.toUpperCase()}
                   </Badge>
                 </TableCell>
@@ -94,14 +97,14 @@ export function WorkflowsTable({ workflows }: WorkflowsTableProps) {
                       workflow.status === 'active'
                         ? 'success'
                         : workflow.status === 'paused'
-                        ? 'secondary'
-                        : 'outline'
+                        ? 'warning'
+                        : 'secondary'
                     }
                   >
                     {workflow.status}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-gray-500">
+                <TableCell className="text-muted-foreground">
                   {new Date(workflow.created_at).toLocaleDateString()}
                 </TableCell>
                 <TableCell>
@@ -135,8 +138,9 @@ export function WorkflowsTable({ workflows }: WorkflowsTableProps) {
                           )}
                         </DropdownMenuItem>
                       )}
+                      <DropdownMenuSeparator />
                       <DropdownMenuItem
-                        className="text-red-600"
+                        className="text-red-400"
                         onClick={() => setDeleteWorkflow(workflow)}
                       >
                         <Trash2 className="w-4 h-4 mr-2" />
