@@ -4,6 +4,7 @@ import { generateResponse, estimateCost } from '@/lib/ai/client'
 import { contextManager } from '@/lib/ai/context-manager'
 import { promptBuilder } from '@/lib/ai/prompt-builder'
 import { intentDetector } from '@/lib/ai/intent-detector'
+import { qualificationEngine } from '@/lib/ai/qualification-engine'
 import { createInitialContext, createEmptyKnowledge, WorkflowKnowledge, TestTurnResult } from '@/types/ai'
 import { Workflow, Client } from '@/types/database'
 
@@ -158,15 +159,34 @@ export async function POST(request: Request) {
       responseTimeMs
     }
 
+    // Assess qualification based on the conversation
+    const qualificationCriteria = knowledge.qualificationCriteria || []
+    const qualificationAssessment = await qualificationEngine.assess(
+      qualificationCriteria,
+      context,
+      messageHistory,
+      body.message
+    )
+
+    // Update context with qualification results
+    const updatedContext = contextManager.update(context, {
+      intent: intent.intent,
+      userMessage: body.message,
+      aiResponse: aiResponse.content,
+      qualificationUpdate: {
+        status: qualificationAssessment.status,
+        criteriaMatched: qualificationAssessment.criteriaMatched,
+        criteriaUnknown: qualificationAssessment.criteriaUnknown,
+        criteriaMissed: qualificationAssessment.criteriaMissed
+      },
+      extractedInfoUpdate: qualificationAssessment.extractedInfo
+    })
+
     return NextResponse.json({
       success: true,
       turn: turnResult,
       intent,
-      context: contextManager.update(context, {
-        intent: intent.intent,
-        userMessage: body.message,
-        aiResponse: aiResponse.content
-      }),
+      context: updatedContext,
       usage: {
         ...aiResponse.usage,
         estimatedCost: cost
