@@ -1,0 +1,42 @@
+name: Auto-deploy Claude branches to main
+
+# Simple, reliable auto-deploy:
+# 1. Push to any claude/* branch
+# 2. Automatically merges to main
+# 3. Vercel deploys main to production
+# No PRs, no waiting, no complexity.
+
+on:
+  push:
+    branches:
+      - 'claude/**'
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Merge to main
+        run: |
+          BRANCH="${GITHUB_REF#refs/heads/}"
+          echo "Merging $BRANCH to main..."
+
+          git fetch origin main
+          git checkout main
+          git merge origin/$BRANCH --no-edit -m "Auto-deploy: $BRANCH"
+          git push origin main
+
+          echo "Successfully deployed $BRANCH to main"
