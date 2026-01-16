@@ -19,8 +19,7 @@ import {
   RefreshCw,
   ChevronDown,
   ChevronUp,
-  CheckCircle2,
-  Calendar
+  CheckCircle2
 } from 'lucide-react'
 import { ConversationContext, Intent, createInitialContext } from '@/types/ai'
 
@@ -62,19 +61,22 @@ export default function AIPlaygroundPage() {
   const [callBooked, setCallBooked] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  // Calculate qualification score (0-100)
-  const getQualificationScore = () => {
-    const criteriaCount = config.qualificationCriteria.split('\n').filter(Boolean).length || 1
-    const matchedCount = context.qualification.criteriaMatched.length
+  // Get criteria stats - for consistent counting
+  const getCriteriaStats = () => {
+    const criteria = config.qualificationCriteria.split('\n').filter(Boolean)
+    const total = criteria.length || 1
 
-    // Base score from criteria (up to 70%)
-    const criteriaScore = (matchedCount / criteriaCount) * 70
+    const matched = criteria.filter(criterion =>
+      context.qualification.criteriaMatched.some(
+        c => c.toLowerCase().includes(criterion.toLowerCase().slice(0, 20)) ||
+             criterion.toLowerCase().includes(c.toLowerCase().slice(0, 20))
+      )
+    ).length
 
-    // Bonus for call booked (30%)
-    const bookingBonus = callBooked ? 30 : 0
-
-    return Math.min(100, criteriaScore + bookingBonus)
+    return { matched, total, score: Math.round((matched / total) * 100) }
   }
+
+  const criteriaStats = getCriteriaStats()
 
   // Check if a call was booked based on conversation
   useEffect(() => {
@@ -406,53 +408,59 @@ export default function AIPlaygroundPage() {
 
       {/* Qualification Progress Bar */}
       {messages.length > 0 && (
-        <Card className={callBooked ? 'border-green-500/50 bg-green-500/5' : ''}>
+        <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center justify-between">
-              <span className="flex items-center gap-2">
-                <Target className="w-4 h-4 text-cyan-400" />
-                Lead Qualification
-              </span>
-              {callBooked && (
-                <div className="flex items-center gap-2 text-green-400">
-                  <CheckCircle2 className="w-5 h-5" />
-                  <span className="font-semibold">Call Booked!</span>
-                </div>
-              )}
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Target className="w-4 h-4 text-cyan-400" />
+              Lead Qualification
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Progress Bar */}
+            {/* Call Booked Banner - Separate from progress bar */}
+            {callBooked && (
+              <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-lg flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
+                  <CheckCircle2 className="w-6 h-6 text-green-400" />
+                </div>
+                <div>
+                  <h4 className="font-semibold text-green-400">Call Booked!</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Lead has agreed to a call. Ready for handoff.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Progress Bar - Based purely on criteria matched */}
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Qualification Score</span>
+                <span className="text-muted-foreground">
+                  Criteria Matched ({criteriaStats.matched}/{criteriaStats.total})
+                </span>
                 <span className={`font-bold ${
-                  getQualificationScore() >= 70 ? 'text-green-400' :
-                  getQualificationScore() >= 40 ? 'text-yellow-400' :
+                  criteriaStats.score === 100 ? 'text-green-400' :
+                  criteriaStats.score >= 50 ? 'text-cyan-400' :
+                  criteriaStats.score > 0 ? 'text-yellow-400' :
                   'text-muted-foreground'
                 }`}>
-                  {Math.round(getQualificationScore())}%
+                  {criteriaStats.score}%
                 </span>
               </div>
-              <div className="h-4 bg-muted/30 rounded-full overflow-hidden">
+              <div className="h-3 bg-muted/30 rounded-full overflow-hidden">
                 <div
                   className={`h-full transition-all duration-500 ease-out rounded-full ${
-                    callBooked ? 'bg-gradient-to-r from-green-500 to-emerald-400' :
-                    getQualificationScore() >= 70 ? 'bg-gradient-to-r from-cyan-500 to-green-400' :
-                    getQualificationScore() >= 40 ? 'bg-gradient-to-r from-yellow-500 to-cyan-400' :
-                    'bg-gradient-to-r from-gray-500 to-cyan-500'
+                    criteriaStats.score === 100 ? 'bg-gradient-to-r from-green-500 to-emerald-400' :
+                    criteriaStats.score >= 50 ? 'bg-gradient-to-r from-cyan-500 to-green-400' :
+                    criteriaStats.score > 0 ? 'bg-gradient-to-r from-yellow-500 to-cyan-400' :
+                    'bg-gray-500'
                   }`}
-                  style={{ width: `${getQualificationScore()}%` }}
+                  style={{ width: `${criteriaStats.score}%` }}
                 />
               </div>
               <div className="flex justify-between text-xs text-muted-foreground">
-                <span>Unknown</span>
-                <span>Partial</span>
-                <span>Qualified</span>
-                <span className="flex items-center gap-1">
-                  <Calendar className="w-3 h-3" />
-                  Booked
-                </span>
+                <span>0%</span>
+                <span>50%</span>
+                <span>100%</span>
               </div>
             </div>
 
@@ -529,20 +537,6 @@ export default function AIPlaygroundPage() {
               </div>
             </div>
 
-            {/* Call Booked Banner */}
-            {callBooked && (
-              <div className="mt-4 p-4 bg-green-500/10 border border-green-500/30 rounded-lg flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center">
-                  <CheckCircle2 className="w-6 h-6 text-green-400" />
-                </div>
-                <div>
-                  <h4 className="font-semibold text-green-400">Call Successfully Booked!</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Lead has been qualified and converted. Ready for handoff.
-                  </p>
-                </div>
-              </div>
-            )}
           </CardContent>
         </Card>
       )}
