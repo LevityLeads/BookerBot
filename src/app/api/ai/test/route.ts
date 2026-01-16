@@ -6,7 +6,7 @@ import { promptBuilder } from '@/lib/ai/prompt-builder'
 import { intentDetector } from '@/lib/ai/intent-detector'
 import { qualificationEngine } from '@/lib/ai/qualification-engine'
 import { createInitialContext, createEmptyKnowledge, WorkflowKnowledge, TestTurnResult } from '@/types/ai'
-import { Workflow, Client } from '@/types/database'
+import { Workflow, Client, Json } from '@/types/database'
 
 type WorkflowWithClient = Workflow & { clients: Client | null }
 
@@ -23,6 +23,17 @@ interface TestRequest {
     role: 'user' | 'assistant'
     content: string
   }>
+  previousContext?: {
+    extractedInfo?: Record<string, unknown>
+    qualification?: {
+      status: string
+      criteriaMatched: string[]
+      criteriaUnknown: string[]
+      criteriaMissed: string[]
+    }
+    state?: Record<string, unknown>
+    summary?: string
+  }
 }
 
 export async function POST(request: Request) {
@@ -106,8 +117,11 @@ export async function POST(request: Request) {
       last_message_at: null
     }
 
-    // Build conversation context
-    const context = createInitialContext()
+    // Build conversation context - use previous context if provided to preserve qualification state
+    const context = body.previousContext
+      ? contextManager.parse(body.previousContext as Json)
+      : createInitialContext()
+
     if (body.conversationHistory && body.conversationHistory.length > 0) {
       // Update context based on conversation history
       context.state.turnCount = body.conversationHistory.length
