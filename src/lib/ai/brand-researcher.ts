@@ -164,7 +164,7 @@ function extractInternalLinks(html: string, baseUrl: string): string[] {
   let match
 
   while ((match = linkRegex.exec(html)) !== null) {
-    let href = match[1]
+    const href = match[1]
 
     // Skip anchors, javascript, mailto, tel
     if (href.startsWith('#') || href.startsWith('javascript:') ||
