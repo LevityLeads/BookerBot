@@ -21,7 +21,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Badge } from '@/components/ui/badge'
-import { MoreHorizontal, Pencil, Trash2, Eye, MessageSquare, Phone, Mail } from 'lucide-react'
+import { MoreHorizontal, Pencil, Trash2, Eye, MessageSquare, Phone, Mail, Send, Loader2 } from 'lucide-react'
 import { Contact, Workflow, Client } from '@/types/database'
 import { DeleteContactDialog } from './delete-contact-dialog'
 import { BulkActionsBar } from './bulk-actions-bar'
@@ -68,6 +68,7 @@ export function ContactsTable({ contacts }: ContactsTableProps) {
   const router = useRouter()
   const [deleteContact, setDeleteContact] = useState<ContactWithWorkflow | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [sendingId, setSendingId] = useState<string | null>(null)
 
   const toggleSelect = (id: string) => {
     const newSelected = new Set(selectedIds)
@@ -89,6 +90,28 @@ export function ContactsTable({ contacts }: ContactsTableProps) {
 
   const clearSelection = () => {
     setSelectedIds(new Set())
+  }
+
+  const handleSendOutreach = async (contactId: string) => {
+    setSendingId(contactId)
+    try {
+      const response = await fetch(`/api/contacts/${contactId}/outreach`, {
+        method: 'POST'
+      })
+      const data = await response.json()
+
+      if (data.success) {
+        // Refresh the page to show updated status
+        router.refresh()
+      } else {
+        alert(`Failed to send: ${data.error}`)
+      }
+    } catch (error) {
+      console.error('Send outreach error:', error)
+      alert('Failed to send message')
+    } finally {
+      setSendingId(null)
+    }
   }
 
   if (contacts.length === 0) {
@@ -202,6 +225,19 @@ export function ContactsTable({ contacts }: ContactsTableProps) {
                         <Pencil className="w-4 h-4 mr-2" />
                         Edit
                       </DropdownMenuItem>
+                      {contact.status === 'pending' && (
+                        <DropdownMenuItem
+                          onClick={() => handleSendOutreach(contact.id)}
+                          disabled={sendingId === contact.id}
+                        >
+                          {sendingId === contact.id ? (
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          ) : (
+                            <Send className="w-4 h-4 mr-2" />
+                          )}
+                          Send Message
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         className="text-red-400"
