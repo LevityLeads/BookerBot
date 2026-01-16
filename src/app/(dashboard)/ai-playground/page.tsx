@@ -134,7 +134,9 @@ export default function AIPlaygroundPage() {
           conversationHistory: messages.map(m => ({
             role: m.role,
             content: m.content
-          }))
+          })),
+          // Pass previous context to preserve qualification state between turns
+          previousContext: context
         })
       })
 
@@ -416,16 +418,16 @@ export default function AIPlaygroundPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Call Booked Banner - Separate from progress bar */}
+            {/* Call Booked Banner - Big prominent celebration */}
             {callBooked && (
-              <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-lg flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
-                  <CheckCircle2 className="w-6 h-6 text-green-400" />
+              <div className="p-6 bg-gradient-to-r from-green-500/20 via-emerald-500/20 to-green-500/20 border-2 border-green-500/50 rounded-xl flex items-center gap-4 animate-pulse">
+                <div className="w-16 h-16 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0 shadow-lg shadow-green-500/50">
+                  <CheckCircle2 className="w-10 h-10 text-white" />
                 </div>
                 <div>
-                  <h4 className="font-semibold text-green-400">Call Booked!</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Lead has agreed to a call. Ready for handoff.
+                  <h3 className="text-2xl font-bold text-green-400">Call Booked!</h3>
+                  <p className="text-base text-green-300/80">
+                    Lead converted successfully. Ready for handoff to sales.
                   </p>
                 </div>
               </div>
