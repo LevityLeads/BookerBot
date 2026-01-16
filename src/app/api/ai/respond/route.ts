@@ -28,8 +28,7 @@ export async function POST(request: Request) {
     // Process message through orchestrator
     const result = await orchestrator.processMessage({
       contactId: body.contactId,
-      message: body.message.trim(),
-      workflow: undefined as never // Will be loaded by orchestrator
+      message: body.message.trim()
     })
 
     return NextResponse.json({

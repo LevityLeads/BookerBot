@@ -1,6 +1,6 @@
 // AI Conversation Engine Types
 
-import { Contact, Workflow, Client } from './database'
+import { Contact } from './database'
 
 // ============================================
 // Brand Research & Knowledge Types
@@ -230,7 +230,6 @@ export interface WorkflowForPrompt {
 export interface ProcessMessageInput {
   contactId: string
   message: string
-  workflow: Workflow & { clients: Client }
 }
 
 export interface ProcessMessageResult {
