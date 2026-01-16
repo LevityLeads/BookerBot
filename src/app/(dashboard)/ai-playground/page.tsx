@@ -18,7 +18,9 @@ import {
   Target,
   RefreshCw,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  CheckCircle2,
+  Calendar
 } from 'lucide-react'
 import { ConversationContext, Intent, createInitialContext } from '@/types/ai'
 
@@ -57,7 +59,40 @@ export default function AIPlaygroundPage() {
   const [totalTokens, setTotalTokens] = useState(0)
   const [totalCost, setTotalCost] = useState(0)
   const [showConfig, setShowConfig] = useState(true)
+  const [callBooked, setCallBooked] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // Calculate qualification score (0-100)
+  const getQualificationScore = () => {
+    const criteriaCount = config.qualificationCriteria.split('\n').filter(Boolean).length || 1
+    const matchedCount = context.qualification.criteriaMatched.length
+
+    // Base score from criteria (up to 70%)
+    const criteriaScore = (matchedCount / criteriaCount) * 70
+
+    // Bonus for call booked (30%)
+    const bookingBonus = callBooked ? 30 : 0
+
+    return Math.min(100, criteriaScore + bookingBonus)
+  }
+
+  // Check if a call was booked based on conversation
+  useEffect(() => {
+    if (context.state.currentGoal === 'confirm_booking' ||
+        context.state.currentGoal === 'closing' && context.qualification.status === 'qualified') {
+      // Check last messages for booking confirmation
+      const recentMessages = messages.slice(-4)
+      const bookingIndicators = ['booked', 'scheduled', 'confirmed', 'calendar', 'appointment', 'see you', 'talk soon']
+      const hasBookingConfirmation = recentMessages.some(m =>
+        m.role === 'assistant' && bookingIndicators.some(indicator =>
+          m.content.toLowerCase().includes(indicator)
+        )
+      )
+      if (hasBookingConfirmation && !callBooked) {
+        setCallBooked(true)
+      }
+    }
+  }, [context, messages, callBooked])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -135,6 +170,7 @@ export default function AIPlaygroundPage() {
     setContext(createInitialContext())
     setTotalTokens(0)
     setTotalCost(0)
+    setCallBooked(false)
   }
 
   const getIntentColor = (intent: Intent): string => {
@@ -368,63 +404,145 @@ export default function AIPlaygroundPage() {
         </Card>
       </div>
 
-      {/* Context Panel */}
+      {/* Qualification Progress Bar */}
       {messages.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Target className="w-4 h-4 text-cyan-400" />
-              Conversation Context
+        <Card className={callBooked ? 'border-green-500/50 bg-green-500/5' : ''}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <Target className="w-4 h-4 text-cyan-400" />
+                Lead Qualification
+              </span>
+              {callBooked && (
+                <div className="flex items-center gap-2 text-green-400">
+                  <CheckCircle2 className="w-5 h-5" />
+                  <span className="font-semibold">Call Booked!</span>
+                </div>
+              )}
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* State */}
+          <CardContent className="space-y-4">
+            {/* Progress Bar */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Qualification Score</span>
+                <span className={`font-bold ${
+                  getQualificationScore() >= 70 ? 'text-green-400' :
+                  getQualificationScore() >= 40 ? 'text-yellow-400' :
+                  'text-muted-foreground'
+                }`}>
+                  {Math.round(getQualificationScore())}%
+                </span>
+              </div>
+              <div className="h-4 bg-muted/30 rounded-full overflow-hidden">
+                <div
+                  className={`h-full transition-all duration-500 ease-out rounded-full ${
+                    callBooked ? 'bg-gradient-to-r from-green-500 to-emerald-400' :
+                    getQualificationScore() >= 70 ? 'bg-gradient-to-r from-cyan-500 to-green-400' :
+                    getQualificationScore() >= 40 ? 'bg-gradient-to-r from-yellow-500 to-cyan-400' :
+                    'bg-gradient-to-r from-gray-500 to-cyan-500'
+                  }`}
+                  style={{ width: `${getQualificationScore()}%` }}
+                />
+              </div>
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>Unknown</span>
+                <span>Partial</span>
+                <span>Qualified</span>
+                <span className="flex items-center gap-1">
+                  <Calendar className="w-3 h-3" />
+                  Booked
+                </span>
+              </div>
+            </div>
+
+            {/* Criteria Checklist */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
               <div>
-                <h4 className="font-medium mb-2">State</h4>
-                <div className="space-y-1 text-sm">
-                  <p><span className="text-muted-foreground">Goal:</span> {context.state.currentGoal.replace(/_/g, ' ')}</p>
-                  <p><span className="text-muted-foreground">Turn:</span> {context.state.turnCount}</p>
-                  <p><span className="text-muted-foreground">Last Intent:</span> {context.state.lastIntent.replace(/_/g, ' ')}</p>
+                <h4 className="font-medium mb-2 text-sm">Qualification Criteria</h4>
+                <div className="space-y-1">
+                  {config.qualificationCriteria.split('\n').filter(Boolean).map((criterion, i) => {
+                    const isMatched = context.qualification.criteriaMatched.some(
+                      c => c.toLowerCase().includes(criterion.toLowerCase().slice(0, 20)) ||
+                           criterion.toLowerCase().includes(c.toLowerCase().slice(0, 20))
+                    )
+                    const isMissed = context.qualification.criteriaMissed.some(
+                      c => c.toLowerCase().includes(criterion.toLowerCase().slice(0, 20)) ||
+                           criterion.toLowerCase().includes(c.toLowerCase().slice(0, 20))
+                    )
+                    return (
+                      <div key={i} className="flex items-center gap-2 text-sm">
+                        <div className={`w-4 h-4 rounded-full flex items-center justify-center ${
+                          isMatched ? 'bg-green-500/20 text-green-400' :
+                          isMissed ? 'bg-red-500/20 text-red-400' :
+                          'bg-muted/30 text-muted-foreground'
+                        }`}>
+                          {isMatched ? '✓' : isMissed ? '✗' : '?'}
+                        </div>
+                        <span className={
+                          isMatched ? 'text-green-400' :
+                          isMissed ? 'text-red-400 line-through' :
+                          'text-muted-foreground'
+                        }>
+                          {criterion}
+                        </span>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
 
-              {/* Qualification */}
+              {/* Conversation State */}
               <div>
-                <h4 className="font-medium mb-2">Qualification</h4>
-                <Badge
-                  className={
-                    context.qualification.status === 'qualified'
-                      ? 'bg-green-500/20 text-green-400'
-                      : context.qualification.status === 'partial'
-                      ? 'bg-yellow-500/20 text-yellow-400'
-                      : context.qualification.status === 'disqualified'
-                      ? 'bg-red-500/20 text-red-400'
-                      : 'bg-gray-500/20 text-gray-400'
-                  }
-                >
-                  {context.qualification.status}
-                </Badge>
-                {context.qualification.criteriaMatched.length > 0 && (
-                  <div className="mt-2 text-sm">
-                    <p className="text-muted-foreground">Matched:</p>
-                    <ul className="list-disc list-inside">
-                      {context.qualification.criteriaMatched.map((c, i) => (
-                        <li key={i} className="text-green-400">{c}</li>
-                      ))}
-                    </ul>
+                <h4 className="font-medium mb-2 text-sm">Conversation State</h4>
+                <div className="space-y-1 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Status</span>
+                    <Badge
+                      className={
+                        callBooked ? 'bg-green-500/20 text-green-400' :
+                        context.qualification.status === 'qualified'
+                          ? 'bg-cyan-500/20 text-cyan-400'
+                          : context.qualification.status === 'partial'
+                          ? 'bg-yellow-500/20 text-yellow-400'
+                          : context.qualification.status === 'disqualified'
+                          ? 'bg-red-500/20 text-red-400'
+                          : 'bg-gray-500/20 text-gray-400'
+                      }
+                    >
+                      {callBooked ? 'Converted' : context.qualification.status}
+                    </Badge>
                   </div>
-                )}
-              </div>
-
-              {/* Summary */}
-              <div>
-                <h4 className="font-medium mb-2">Summary</h4>
-                <p className="text-sm text-muted-foreground">
-                  {context.summary || 'No summary yet'}
-                </p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Current Goal</span>
+                    <span className="capitalize">{context.state.currentGoal.replace(/_/g, ' ')}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Turn</span>
+                    <span>{context.state.turnCount}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Last Intent</span>
+                    <span className="capitalize">{context.state.lastIntent.replace(/_/g, ' ')}</span>
+                  </div>
+                </div>
               </div>
             </div>
+
+            {/* Call Booked Banner */}
+            {callBooked && (
+              <div className="mt-4 p-4 bg-green-500/10 border border-green-500/30 rounded-lg flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center">
+                  <CheckCircle2 className="w-6 h-6 text-green-400" />
+                </div>
+                <div>
+                  <h4 className="font-semibold text-green-400">Call Successfully Booked!</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Lead has been qualified and converted. Ready for handoff.
+                  </p>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
