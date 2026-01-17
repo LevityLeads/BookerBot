@@ -213,12 +213,14 @@ export async function sendInitialOutreach(contactId: string): Promise<SendOutbou
   }
 
   // Parse the initial message template with contact variables
+  const brandName = typedContact.workflows.clients?.brand_name || typedContact.workflows.clients?.name || ''
   const initialMessage = parseTemplate(
     typedContact.workflows.initial_message_template,
     {
       first_name: typedContact.first_name || '',
       last_name: typedContact.last_name || '',
-      company_name: typedContact.workflows.clients?.brand_name || typedContact.workflows.clients?.name || '',
+      company_name: brandName,
+      brand_name: brandName,
       full_name: [typedContact.first_name, typedContact.last_name].filter(Boolean).join(' ') || 'there'
     }
   )
@@ -256,12 +258,17 @@ export async function sendInitialOutreach(contactId: string): Promise<SendOutbou
 }
 
 /**
- * Parse a template string, replacing {{variable}} placeholders
+ * Parse a template string, replacing {variable} or {{variable}} placeholders
  */
 function parseTemplate(template: string, variables: Record<string, string>): string {
-  return template.replace(/\{\{(\w+)\}\}/g, (match, key) => {
-    return variables[key] ?? match
-  })
+  // Handle both single {var} and double {{var}} curly brace syntax
+  return template
+    .replace(/\{\{(\w+)\}\}/g, (match, key) => {
+      return variables[key] ?? match
+    })
+    .replace(/\{(\w+)\}/g, (match, key) => {
+      return variables[key] ?? match
+    })
 }
 
 /**
