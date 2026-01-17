@@ -6,6 +6,7 @@ interface UpdateWorkflowBody {
   channel?: 'sms' | 'whatsapp' | 'email'
   status?: 'active' | 'paused' | 'archived'
   instructions?: string
+  qualification_criteria?: string
   initial_message_template?: string
   description?: string
 }
@@ -53,6 +54,7 @@ export async function PUT(
     if (body.channel !== undefined) updateData.channel = body.channel
     if (body.status !== undefined) updateData.status = body.status
     if (body.instructions !== undefined) updateData.instructions = body.instructions
+    if (body.qualification_criteria !== undefined) updateData.qualification_criteria = body.qualification_criteria
     if (body.initial_message_template !== undefined) updateData.initial_message_template = body.initial_message_template
     if (body.description !== undefined) updateData.description = body.description
 
