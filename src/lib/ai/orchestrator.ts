@@ -289,7 +289,7 @@ export class ConversationOrchestrator {
 
     // Brand info comes from Client (set via brand research)
     if (client) {
-      knowledge.companyName = client.brand_name || client.name
+      knowledge.companyName = client.name
       knowledge.brandSummary = client.brand_summary || ''
       knowledge.services = (client.brand_services as string[]) || []
       knowledge.targetAudience = client.brand_target_audience || ''
