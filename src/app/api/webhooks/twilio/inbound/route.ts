@@ -3,6 +3,36 @@ import { createClient } from '@/lib/supabase/server'
 import { orchestrator } from '@/lib/ai/orchestrator'
 import { sendMessage, validateTwilioRequest, formatPhoneNumber } from '@/lib/twilio/client'
 
+/**
+ * Calculate a realistic "typing" delay based on message length.
+ * Makes the AI feel more human by not responding instantly.
+ */
+function calculateTypingDelay(messageLength: number): number {
+  // Base: ~40ms per character (faster than real typing but feels natural)
+  const baseDelay = messageLength * 40
+
+  // Add "reading time" - 800ms to read their message
+  const readingTime = 800
+
+  // Add randomness (±25%) to feel more natural
+  const randomFactor = 0.75 + Math.random() * 0.5
+
+  // Calculate total with randomness
+  let delay = (baseDelay + readingTime) * randomFactor
+
+  // Clamp between 1.5 and 8 seconds
+  delay = Math.max(1500, Math.min(8000, delay))
+
+  return Math.round(delay)
+}
+
+/**
+ * Sleep for a given number of milliseconds
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
 // Standard Twilio opt-out keywords
 const OPT_OUT_KEYWORDS = ['stop', 'stopall', 'unsubscribe', 'cancel', 'end', 'quit']
 
@@ -185,6 +215,11 @@ export async function POST(request: Request) {
     // Construct the status callback URL
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://your-app.vercel.app'
     const statusCallback = `${baseUrl}/api/webhooks/twilio/status`
+
+    // Add a realistic "typing" delay to feel more human
+    const typingDelay = calculateTypingDelay(result.response.length)
+    console.log(`Simulating typing delay: ${typingDelay}ms for ${result.response.length} chars`)
+    await sleep(typingDelay)
 
     // Send the AI response via Twilio
     const sendResult = await sendMessage({
