@@ -107,7 +107,7 @@ export default async function ContactsPage({
         searchQuery={searchParams.search}
       />
 
-      <ContactsTable contacts={typedContacts} />
+      <ContactsTable contacts={typedContacts} workflows={typedWorkflows} />
     </div>
   )
 }

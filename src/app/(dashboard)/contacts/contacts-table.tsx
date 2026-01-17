@@ -32,8 +32,11 @@ type ContactWithWorkflow = Contact & {
   }
 }
 
+type WorkflowOption = Pick<Workflow, 'id' | 'name'>
+
 interface ContactsTableProps {
   contacts: ContactWithWorkflow[]
+  workflows?: WorkflowOption[]
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -64,7 +67,7 @@ const CHANNEL_ICONS: Record<string, React.ReactNode> = {
   email: <Mail className="w-3 h-3" />,
 }
 
-export function ContactsTable({ contacts }: ContactsTableProps) {
+export function ContactsTable({ contacts, workflows = [] }: ContactsTableProps) {
   const router = useRouter()
   const [deleteContact, setDeleteContact] = useState<ContactWithWorkflow | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -131,6 +134,7 @@ export function ContactsTable({ contacts }: ContactsTableProps) {
           selectedCount={selectedIds.size}
           selectedIds={Array.from(selectedIds)}
           onClear={clearSelection}
+          workflows={workflows}
         />
       )}
 
