@@ -31,9 +31,11 @@ export default function EditWorkflowPage({ params }: EditWorkflowPageProps) {
 
   const [formData, setFormData] = useState({
     name: '',
+    description: '',
     channel: 'sms' as 'sms' | 'whatsapp' | 'email',
     status: 'paused' as 'active' | 'paused' | 'archived',
     instructions: '',
+    qualification_criteria: '',
     initial_message_template: '',
   })
 
@@ -54,9 +56,11 @@ export default function EditWorkflowPage({ params }: EditWorkflowPageProps) {
       const workflowData = data as Workflow
       setFormData({
         name: workflowData.name,
+        description: workflowData.description || '',
         channel: workflowData.channel,
         status: workflowData.status,
         instructions: workflowData.instructions || '',
+        qualification_criteria: workflowData.qualification_criteria || '',
         initial_message_template: workflowData.initial_message_template || '',
       })
       setLoading(false)
@@ -118,83 +122,123 @@ export default function EditWorkflowPage({ params }: EditWorkflowPageProps) {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="name">Workflow Name</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                />
+            <div className="grid gap-6">
+              {/* Basic Settings */}
+              <div className="grid gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="name">Workflow Name</Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="channel">Channel</Label>
+                    <Select
+                      value={formData.channel}
+                      onValueChange={(value: 'sms' | 'whatsapp' | 'email') =>
+                        setFormData({ ...formData, channel: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="sms">SMS</SelectItem>
+                        <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                        <SelectItem value="email">Email</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label htmlFor="status">Status</Label>
+                    <Select
+                      value={formData.status}
+                      onValueChange={(value: 'active' | 'paused' | 'archived') =>
+                        setFormData({ ...formData, status: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="paused">Paused</SelectItem>
+                        <SelectItem value="archived">Archived</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </div>
 
-              <div className="grid gap-2">
-                <Label htmlFor="channel">Channel</Label>
-                <Select
-                  value={formData.channel}
-                  onValueChange={(value: 'sms' | 'whatsapp' | 'email') =>
-                    setFormData({ ...formData, channel: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="sms">SMS</SelectItem>
-                    <SelectItem value="whatsapp">WhatsApp</SelectItem>
-                    <SelectItem value="email">Email</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="status">Status</Label>
-                <Select
-                  value={formData.status}
-                  onValueChange={(value: 'active' | 'paused' | 'archived') =>
-                    setFormData({ ...formData, status: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="paused">Paused</SelectItem>
-                    <SelectItem value="archived">Archived</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="instructions">AI Instructions</Label>
+              {/* Offer Description - THE KEY FIELD */}
+              <div className="grid gap-2 p-4 border border-cyan-500/30 rounded-lg bg-cyan-500/5">
+                <Label htmlFor="instructions" className="text-cyan-400 font-semibold">
+                  Offer Description (What You&apos;re Selling)
+                </Label>
                 <Textarea
                   id="instructions"
-                  placeholder="Enter AI instructions for this workflow..."
+                  placeholder="Describe what you're offering in this campaign. Be specific about:
+- What the product/service is
+- Key benefits and value proposition
+- What makes it unique
+- What a successful outcome looks like
+
+Example: We help B2B companies get their research and insights published on The Economist. Our sponsored content reaches 500k+ senior decision-makers globally. Packages start at £100k and include custom research, editorial support, and multi-channel distribution."
                   value={formData.instructions}
                   onChange={(e) =>
                     setFormData({ ...formData, instructions: e.target.value })
                   }
-                  rows={6}
+                  rows={8}
                   className="font-mono text-sm"
                 />
+                <p className="text-xs text-muted-foreground">
+                  This is what the AI uses to explain your offering. Be specific - the AI will use this exact information.
+                </p>
               </div>
 
+              {/* Qualification Criteria - Separate Section */}
+              <div className="grid gap-2">
+                <Label htmlFor="qualification_criteria">Qualification Criteria</Label>
+                <Textarea
+                  id="qualification_criteria"
+                  placeholder="List the criteria to qualify a lead (one per line):
+- Budget of £X or more
+- Decision maker or influencer
+- Company size of X+ employees
+- Timeline within X weeks"
+                  value={formData.qualification_criteria}
+                  onChange={(e) =>
+                    setFormData({ ...formData, qualification_criteria: e.target.value })
+                  }
+                  rows={5}
+                  className="font-mono text-sm"
+                />
+                <p className="text-xs text-muted-foreground">
+                  The AI will naturally discover these through conversation before suggesting a call.
+                </p>
+              </div>
+
+              {/* Initial Message */}
               <div className="grid gap-2">
                 <Label htmlFor="initial_message_template">Initial Message Template</Label>
                 <Textarea
                   id="initial_message_template"
-                  placeholder="Enter the initial message template..."
+                  placeholder="Hi {first_name}, this is {brand_name}..."
                   value={formData.initial_message_template}
                   onChange={(e) =>
                     setFormData({ ...formData, initial_message_template: e.target.value })
                   }
-                  rows={4}
+                  rows={3}
                   className="font-mono text-sm"
                 />
-                <p className="text-sm text-gray-500">
-                  Use variables like {'{first_name}'}, {'{brand_name}'}, etc.
+                <p className="text-xs text-muted-foreground">
+                  Variables: {'{first_name}'}, {'{last_name}'}, {'{brand_name}'}, {'{company_name}'}
                 </p>
               </div>
             </div>
