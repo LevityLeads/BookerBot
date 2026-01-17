@@ -46,7 +46,6 @@ export default function EditClientPage({ params }: EditClientPageProps) {
 
   const [formData, setFormData] = useState({
     name: '',
-    brand_name: '',
     timezone: 'Europe/London',
     twilio_phone_number: '',
     business_hours: {
@@ -78,7 +77,6 @@ export default function EditClientPage({ params }: EditClientPageProps) {
       setClient(clientData)
       setFormData({
         name: clientData.name,
-        brand_name: clientData.brand_name,
         timezone: clientData.timezone,
         twilio_phone_number: clientData.twilio_phone_number || '',
         business_hours: clientData.business_hours as BusinessHours,
@@ -199,23 +197,16 @@ export default function EditClientPage({ params }: EditClientPageProps) {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="name">Client Name</Label>
+                <Label htmlFor="name">Brand Name</Label>
                 <Input
                   id="name"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   required
                 />
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="brand_name">Brand Name</Label>
-                <Input
-                  id="brand_name"
-                  value={formData.brand_name}
-                  onChange={(e) => setFormData({ ...formData, brand_name: e.target.value })}
-                  required
-                />
+                <p className="text-xs text-muted-foreground">
+                  This name will be used in outreach messages
+                </p>
               </div>
 
               <div className="grid gap-2">

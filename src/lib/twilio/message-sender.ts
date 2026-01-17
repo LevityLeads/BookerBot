@@ -213,7 +213,7 @@ export async function sendInitialOutreach(contactId: string): Promise<SendOutbou
   }
 
   // Parse the initial message template with contact variables
-  const brandName = typedContact.workflows.clients?.brand_name || typedContact.workflows.clients?.name || ''
+  const brandName = typedContact.workflows.clients?.name || ''
   const initialMessage = parseTemplate(
     typedContact.workflows.initial_message_template,
     {

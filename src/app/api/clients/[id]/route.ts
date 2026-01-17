@@ -4,7 +4,6 @@ import { BusinessHours } from '@/types/database'
 
 interface UpdateClientBody {
   name?: string
-  brand_name?: string
   brand_url?: string
   brand_logo_url?: string
   brand_summary?: string
@@ -62,8 +61,10 @@ export async function PUT(
     // Only include fields that were provided (allows partial updates)
     const updateData: Record<string, unknown> = {}
 
-    if (body.name !== undefined) updateData.name = body.name
-    if (body.brand_name !== undefined) updateData.brand_name = body.brand_name
+    if (body.name !== undefined) {
+      updateData.name = body.name
+      updateData.brand_name = body.name // Auto-sync brand_name with name
+    }
     if (body.brand_url !== undefined) updateData.brand_url = body.brand_url
     if (body.brand_logo_url !== undefined) updateData.brand_logo_url = body.brand_logo_url
     if (body.brand_summary !== undefined) updateData.brand_summary = body.brand_summary

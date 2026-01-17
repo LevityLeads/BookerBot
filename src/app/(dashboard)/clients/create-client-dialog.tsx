@@ -46,7 +46,6 @@ export function CreateClientDialog({ children }: CreateClientDialogProps) {
 
   const [formData, setFormData] = useState({
     name: '',
-    brand_name: '',
     brand_url: '',
     timezone: 'Europe/London',
   })
@@ -70,7 +69,7 @@ export function CreateClientDialog({ children }: CreateClientDialogProps) {
 
       const data = await response.json()
       setOpen(false)
-      setFormData({ name: '', brand_name: '', brand_url: '', timezone: 'Europe/London' })
+      setFormData({ name: '', brand_url: '', timezone: 'Europe/London' })
 
       // Redirect to edit page to run brand research
       router.push(`/clients/${data.id}/edit`)
@@ -96,23 +95,12 @@ export function CreateClientDialog({ children }: CreateClientDialogProps) {
 
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="name">Client Name</Label>
+              <Label htmlFor="name">Brand Name</Label>
               <Input
                 id="name"
                 placeholder="Acme Corporation"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                required
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="brand_name">Brand Name</Label>
-              <Input
-                id="brand_name"
-                placeholder="Acme"
-                value={formData.brand_name}
-                onChange={(e) => setFormData({ ...formData, brand_name: e.target.value })}
                 required
               />
               <p className="text-xs text-muted-foreground">

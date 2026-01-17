@@ -4,7 +4,6 @@ import { BusinessHours } from '@/types/database'
 
 interface CreateClientBody {
   name: string
-  brand_name: string
   brand_url?: string
   brand_logo_url?: string
   timezone?: string
@@ -51,7 +50,7 @@ export async function POST(request: Request) {
 
     const insertData = {
       name: body.name,
-      brand_name: body.brand_name,
+      brand_name: body.name, // Auto-sync brand_name with name
       brand_url: brandUrl,
       brand_logo_url: body.brand_logo_url || null,
       timezone: body.timezone || 'Europe/London',
