@@ -79,12 +79,12 @@ export function ContactsFilters({
   const hasFilters = selectedClient || selectedWorkflow || selectedStatus || searchQuery
 
   return (
-    <div className="bg-white rounded-lg border p-4 mb-6">
+    <div className="bg-card rounded-xl border border-border/50 p-4 mb-6">
       <div className="flex flex-wrap gap-4 items-end">
         <div className="flex-1 min-w-[200px]">
-          <label className="text-sm font-medium text-gray-700 mb-1 block">Search</label>
+          <label className="text-sm font-medium text-foreground mb-1 block">Search</label>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               placeholder="Search name, phone, email..."
               value={searchQuery || ''}
@@ -95,7 +95,7 @@ export function ContactsFilters({
         </div>
 
         <div className="w-[180px]">
-          <label className="text-sm font-medium text-gray-700 mb-1 block">Client</label>
+          <label className="text-sm font-medium text-foreground mb-1 block">Client</label>
           <Select
             value={selectedClient || 'all'}
             onValueChange={(value) => {
@@ -120,7 +120,7 @@ export function ContactsFilters({
         </div>
 
         <div className="w-[180px]">
-          <label className="text-sm font-medium text-gray-700 mb-1 block">Workflow</label>
+          <label className="text-sm font-medium text-foreground mb-1 block">Workflow</label>
           <Select
             value={selectedWorkflow || 'all'}
             onValueChange={(value) => updateFilter('workflow', value === 'all' ? null : value)}
@@ -140,7 +140,7 @@ export function ContactsFilters({
         </div>
 
         <div className="w-[160px]">
-          <label className="text-sm font-medium text-gray-700 mb-1 block">Status</label>
+          <label className="text-sm font-medium text-foreground mb-1 block">Status</label>
           <Select
             value={selectedStatus || 'all'}
             onValueChange={(value) => updateFilter('status', value === 'all' ? null : value)}
