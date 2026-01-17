@@ -116,7 +116,8 @@ export class ConversationOrchestrator {
       messageHistory,
       currentMessage: input.message,
       channel: typedContact.workflows.channel,
-      appointmentDuration: typedContact.workflows.appointment_duration_minutes
+      appointmentDuration: typedContact.workflows.appointment_duration_minutes,
+      workflowInstructions: typedContact.workflows.instructions
     })
 
     const aiResponse = await generateResponse(promptConfig)
