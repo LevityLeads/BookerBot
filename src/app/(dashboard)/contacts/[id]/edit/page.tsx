@@ -14,8 +14,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { ArrowLeft, Loader2 } from 'lucide-react'
-import { Contact } from '@/types/database'
+import { ArrowLeft, Loader2, AlertTriangle } from 'lucide-react'
+import { Contact, Workflow } from '@/types/database'
 
 const STATUSES = [
   { value: 'pending', label: 'Pending' },
@@ -28,6 +28,10 @@ const STATUSES = [
   { value: 'handed_off', label: 'Handed Off' },
 ]
 
+type WorkflowOption = Pick<Workflow, 'id' | 'name' | 'client_id'> & {
+  clients?: { name: string }
+}
+
 export default function EditContactPage({
   params,
 }: {
@@ -37,6 +41,8 @@ export default function EditContactPage({
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [workflows, setWorkflows] = useState<WorkflowOption[]>([])
+  const [originalWorkflowId, setOriginalWorkflowId] = useState<string>('')
 
   const [formData, setFormData] = useState({
     first_name: '',
@@ -44,22 +50,33 @@ export default function EditContactPage({
     phone: '',
     email: '',
     status: 'pending' as Contact['status'],
+    workflow_id: '',
   })
 
   useEffect(() => {
-    async function fetchContact() {
+    async function fetchData() {
       try {
-        const response = await fetch(`/api/contacts/${params.id}`)
-        if (!response.ok) throw new Error('Failed to fetch contact')
+        // Fetch contact and workflows in parallel
+        const [contactResponse, workflowsResponse] = await Promise.all([
+          fetch(`/api/contacts/${params.id}`),
+          fetch('/api/workflows')
+        ])
 
-        const contact = await response.json()
+        if (!contactResponse.ok) throw new Error('Failed to fetch contact')
+
+        const contact = await contactResponse.json()
+        const workflowsData = await workflowsResponse.json()
+
         setFormData({
           first_name: contact.first_name || '',
           last_name: contact.last_name || '',
           phone: contact.phone || '',
           email: contact.email || '',
           status: contact.status,
+          workflow_id: contact.workflow_id,
         })
+        setOriginalWorkflowId(contact.workflow_id)
+        setWorkflows(workflowsData || [])
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load contact')
       } finally {
@@ -67,7 +84,7 @@ export default function EditContactPage({
       }
     }
 
-    fetchContact()
+    fetchData()
   }, [params.id])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -82,16 +99,24 @@ export default function EditContactPage({
     }
 
     try {
+      const updatePayload: Record<string, unknown> = {
+        first_name: formData.first_name || null,
+        last_name: formData.last_name || null,
+        phone: formData.phone || null,
+        email: formData.email || null,
+        status: formData.status,
+      }
+
+      // Only include workflow_id if it changed
+      if (formData.workflow_id !== originalWorkflowId) {
+        updatePayload.workflow_id = formData.workflow_id
+        // This will automatically reset status and clear history
+      }
+
       const response = await fetch(`/api/contacts/${params.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          first_name: formData.first_name || null,
-          last_name: formData.last_name || null,
-          phone: formData.phone || null,
-          email: formData.email || null,
-          status: formData.status,
-        }),
+        body: JSON.stringify(updatePayload),
       })
 
       if (!response.ok) {
@@ -108,10 +133,12 @@ export default function EditContactPage({
     }
   }
 
+  const workflowChanged = formData.workflow_id !== originalWorkflowId
+
   if (loading) {
     return (
       <div className="p-8 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
       </div>
     )
   }
@@ -120,7 +147,7 @@ export default function EditContactPage({
     <div className="p-8 max-w-2xl">
       <Link
         href={`/contacts/${params.id}`}
-        className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1 mb-6"
+        className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 mb-6"
       >
         <ArrowLeft className="w-4 h-4" />
         Back to Contact
@@ -129,7 +156,7 @@ export default function EditContactPage({
       <Card>
         <CardHeader>
           <CardTitle>Edit Contact</CardTitle>
-          <CardDescription>Update contact information and status</CardDescription>
+          <CardDescription>Update contact information, status, or workflow</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -174,9 +201,37 @@ export default function EditContactPage({
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               />
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted-foreground">
                 At least one contact method (phone or email) is required
               </p>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="workflow">Workflow</Label>
+              <Select
+                value={formData.workflow_id}
+                onValueChange={(value) => setFormData({ ...formData, workflow_id: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select workflow" />
+                </SelectTrigger>
+                <SelectContent>
+                  {workflows.map((workflow) => (
+                    <SelectItem key={workflow.id} value={workflow.id}>
+                      {workflow.name} {workflow.clients?.name ? `(${workflow.clients.name})` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {workflowChanged && (
+                <div className="flex items-start gap-2 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-yellow-400">
+                  <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm">
+                    <p className="font-medium">Changing workflow will reset this contact</p>
+                    <p className="text-yellow-400/80">Status will be set to Pending and all messages/appointments will be deleted.</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="grid gap-2">
@@ -184,6 +239,7 @@ export default function EditContactPage({
               <Select
                 value={formData.status}
                 onValueChange={(value) => setFormData({ ...formData, status: value as Contact['status'] })}
+                disabled={workflowChanged}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -196,10 +252,15 @@ export default function EditContactPage({
                   ))}
                 </SelectContent>
               </Select>
+              {workflowChanged && (
+                <p className="text-xs text-muted-foreground">
+                  Status will be reset to Pending when changing workflow
+                </p>
+              )}
             </div>
 
             {error && (
-              <div className="text-sm text-red-600 bg-red-50 p-3 rounded">
+              <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/30 p-3 rounded-lg">
                 {error}
               </div>
             )}
