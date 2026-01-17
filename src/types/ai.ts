@@ -94,6 +94,9 @@ export interface ConversationContext {
 
   // Summary for prompt injection
   summary: string
+
+  // Message count for phase determination
+  messageCount: number
 }
 
 export interface ExtractedInfo {
@@ -201,6 +204,7 @@ export type AIModel =
   | 'claude-3-haiku-20240307'
   | 'claude-3-5-haiku-20241022'
   | 'claude-3-5-sonnet-20241022'
+  | 'claude-sonnet-4-20250514'
   | 'claude-opus-4-5-20251101'
 
 export interface MessageForPrompt {
@@ -308,7 +312,8 @@ export function createInitialContext(): ConversationContext {
       followUpsSent: 0,
       lastMessageAt: null
     },
-    summary: ''
+    summary: '',
+    messageCount: 0
   }
 }
 

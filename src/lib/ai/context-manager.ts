@@ -22,7 +22,8 @@ export class ContextManager {
       extractedInfo: this.parseExtractedInfo(data.extractedInfo),
       qualification: this.parseQualification(data.qualification),
       state: this.parseState(data.state),
-      summary: typeof data.summary === 'string' ? data.summary : ''
+      summary: typeof data.summary === 'string' ? data.summary : '',
+      messageCount: typeof data.messageCount === 'number' ? data.messageCount : 0
     }
   }
 
@@ -94,7 +95,8 @@ export class ContextManager {
       extractedInfo: newExtractedInfo,
       qualification: newQualification,
       state: newState,
-      summary
+      summary,
+      messageCount: current.messageCount + 1
     }
   }
 
