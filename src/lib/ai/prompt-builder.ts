@@ -107,18 +107,21 @@ Total messages exchanged: ${context.messageCount}
     // Add booking constraints if slots have been offered
     if (params.offeredSlots && params.offeredSlots.length > 0) {
       prompt += `
-## BOOKING CONSTRAINTS (CRITICAL - READ CAREFULLY)
-You have already offered the following available time slots to ${contactName}:
+## CALENDAR AVAILABILITY (CRITICAL)
+You checked the calendar and these are the ONLY available times:
 ${params.offeredSlots.map((slot, i) => `${i + 1}. ${slot.formatted}`).join('\n')}
 
-CRITICAL RULES FOR BOOKING:
-1. You can ONLY confirm appointments for times listed above - these are the only available slots
-2. If they request a time NOT on this list (like "12pm" when 12pm isn't listed), you MUST say that time isn't available and redirect them to the options above
-3. Do NOT confirm times that weren't offered - the calendar shows those times are already booked
-4. If they pick a time from the list, confirm it enthusiastically
-5. If they ask for a different time entirely, offer to have someone reach out to find another option
+These times are based on actual calendar availability. Everything else is booked.
 
-Example of what NOT to do: If they say "12pm tomorrow" but 12pm isn't in your list above, DO NOT say "12pm works!" - instead say something like "I don't have 12pm available, but I do have [list times from above]. Would any of those work?"
+HOW TO HANDLE TIME REQUESTS:
+- If they pick one of the times above → confirm it naturally (the booking system will handle the rest)
+- If they request a time NOT listed (e.g., "how about 12pm?" but 12pm isn't above) → that slot is taken. Say something like "12's already booked - would [mention 1-2 times from above] work instead?"
+- If they want a completely different day/time range → offer to have someone reach out to find something
+
+DO NOT:
+- Confirm times that aren't in the list above (they're genuinely not available)
+- Say "let me check" - you already checked, these are the results
+- Be apologetic about limited availability - just be matter-of-fact about it
 `
     }
 
@@ -235,22 +238,24 @@ Your goal right now:
 You still need to learn more about them. Work the qualifying questions into normal conversation - don't rapid-fire questions at them. One question per message, max.`
 
       case 'qualified':
-        return `They seem like a good fit based on what you've learned.
+        return `They're a good fit. Time to see if they want to book something.
 
 Your goal right now:
-- If the vibe is right, casually mention hopping on a ${appointmentDuration}-min call
-- Don't force it - if they're not feeling it, just keep talking
-- Let them lead if they want to
+- Suggest a ${appointmentDuration}-min call if the conversation is heading that way
+- If they're interested, ask what days/times generally work for them
+- Don't be pushy - if they hesitate, that's fine, keep the conversation going
 
-You've learned what you needed. If it makes sense, steer toward scheduling something.`
+Keep it casual. Something like "Want to jump on a quick call to go over the details?" works better than a formal pitch.`
 
       case 'booking':
-        return `You can bring up booking whenever it feels natural.
+        return `They've shown interest in booking. Help them find a time.
 
 Your goal:
-- Have a real conversation
-- If they seem interested, mention a ${appointmentDuration}-min call
-- No pressure, no sales tactics`
+- If they haven't seen available times yet, ask what days/times work for them
+- If they've seen options and are responding, help them pick one
+- Keep it simple - this is just scheduling, not a sales pitch
+
+Treat it like you're texting a friend to find a time to meet up.`
     }
   }
 
