@@ -5,6 +5,7 @@ import { promptBuilder } from './prompt-builder'
 import { intentDetector } from './intent-detector'
 import { qualificationEngine } from './qualification-engine'
 import { handoffHandler } from './handoff-handler'
+import { bookingHandler, BookingState } from './booking-handler'
 import {
   ProcessMessageInput,
   ProcessMessageResult,
@@ -12,7 +13,7 @@ import {
   WorkflowKnowledge,
   createEmptyKnowledge
 } from '@/types/ai'
-import { Contact, Message, Workflow, Client } from '@/types/database'
+import { Contact, Message, Workflow, Client, Json } from '@/types/database'
 
 type ContactWithWorkflow = Contact & {
   workflows: Workflow & {
@@ -107,6 +108,57 @@ export class ConversationOrchestrator {
       messageHistory,
       input.message
     )
+
+    // 10.5. Handle booking flow
+    const bookingState = bookingHandler.deserializeState(
+      (typedContact.conversation_context as Record<string, unknown>)?.bookingState as Record<string, unknown>
+    )
+
+    // If booking flow is active, try to handle time selection
+    if (bookingState.isActive && bookingState.offeredSlots.length > 0) {
+      const bookingResult = await bookingHandler.handleTimeSelection(
+        typedContact,
+        input.message,
+        bookingState
+      )
+
+      if (!bookingResult.continueWithAI) {
+        // Booking was handled - save response and return
+        return this.saveBookingResponse(
+          typedContact,
+          context,
+          bookingResult,
+          input.message
+        )
+      }
+    }
+
+    // If contact is qualified and shows booking interest, offer time slots
+    if (
+      (intent.intent === 'booking_interest' || qualificationAssessment.status === 'qualified') &&
+      !bookingState.isActive &&
+      typedContact.status !== 'booked'
+    ) {
+      const hasCalendar = await bookingHandler.isCalendarConnected(
+        typedContact.workflows.clients.id
+      )
+
+      if (hasCalendar && bookingState.offerAttempts < 2) {
+        const bookingResult = await bookingHandler.offerTimeSlots(
+          typedContact,
+          bookingState
+        )
+
+        if (!bookingResult.continueWithAI) {
+          return this.saveBookingResponse(
+            typedContact,
+            context,
+            bookingResult,
+            input.message
+          )
+        }
+      }
+    }
 
     // 11. Build prompt and generate response
     const promptConfig = promptBuilder.build({
@@ -345,13 +397,89 @@ export class ConversationOrchestrator {
       return { newStatus: 'qualified', reason: 'Contact met qualification criteria' }
     }
 
-    // Booking interest from qualified contact would trigger booking flow (Sprint 5)
-    if (intent === 'booking_interest' && qualificationStatus === 'qualified') {
-      // Will be handled by calendar integration in Sprint 5
-      return undefined
+    // Booking handled separately by bookingHandler
+    return undefined
+  }
+
+  /**
+   * Save a booking flow response and update contact
+   */
+  private async saveBookingResponse(
+    contact: ContactWithWorkflow,
+    context: ConversationContext,
+    bookingResult: {
+      message: string
+      bookingState: BookingState
+      appointmentCreated: boolean
+      appointmentId?: string
+    },
+    userMessage: string
+  ): Promise<ProcessMessageResult> {
+    const supabase = await createClient()
+
+    // Save the booking response message
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any).from('messages').insert({
+      contact_id: contact.id,
+      direction: 'outbound',
+      channel: contact.workflows.channel,
+      content: bookingResult.message,
+      status: 'pending',
+      ai_generated: true,
+      tokens_used: 0,
+      input_tokens: 0,
+      output_tokens: 0,
+      ai_model: 'booking-handler',
+      ai_cost: 0
+    })
+
+    // Update context with booking state
+    const updatedContext = contextManager.update(context, {
+      intent: bookingResult.appointmentCreated ? 'confirmation' : 'booking_interest',
+      userMessage,
+      aiResponse: bookingResult.message
+    })
+
+    // Prepare conversation context with booking state
+    const serializedContext = contextManager.serialize(updatedContext) as Record<string, unknown>
+    const contextWithBooking = {
+      ...serializedContext,
+      bookingState: bookingHandler.serializeState(bookingResult.bookingState)
     }
 
-    return undefined
+    // Update contact
+    const updateData: Partial<Contact> & { conversation_context: Json } = {
+      conversation_context: contextWithBooking as Json,
+      last_message_at: new Date().toISOString()
+    }
+
+    if (bookingResult.appointmentCreated) {
+      updateData.status = 'booked'
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any)
+      .from('contacts')
+      .update(updateData)
+      .eq('id', contact.id)
+
+    return {
+      response: bookingResult.message,
+      intent: {
+        intent: bookingResult.appointmentCreated ? 'confirmation' : 'booking_interest',
+        confidence: 1.0,
+        entities: bookingResult.appointmentId
+          ? { appointmentId: bookingResult.appointmentId }
+          : {},
+        requiresEscalation: false
+      },
+      contextUpdate: updatedContext,
+      statusUpdate: bookingResult.appointmentCreated
+        ? { newStatus: 'booked', reason: 'Appointment booked' }
+        : undefined,
+      tokensUsed: { input: 0, output: 0, total: 0, model: 'booking-handler' },
+      shouldEscalate: false
+    }
   }
 }
 

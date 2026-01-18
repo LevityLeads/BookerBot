@@ -5,8 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { ArrowLeft, Pencil, Calendar, Clock, Phone } from 'lucide-react'
-import { BusinessHours, Client, Workflow } from '@/types/database'
+import { ArrowLeft, Pencil, Calendar, Clock, Phone, CheckCircle2, LinkIcon } from 'lucide-react'
+import { BusinessHours, Client, Workflow, CalendarConnection } from '@/types/database'
 
 interface ClientPageProps {
   params: { id: string }
@@ -35,6 +35,16 @@ export default async function ClientPage({ params }: ClientPageProps) {
 
   const workflows = (workflowsData || []) as Workflow[]
   const workflowIds = workflows.map(w => w.id)
+
+  // Fetch calendar connection
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: calendarData } = await (supabase as any)
+    .from('calendar_connections')
+    .select('*')
+    .eq('client_id', params.id)
+    .single() as { data: CalendarConnection | null }
+
+  const calendarConnection = calendarData
 
   const statsResult = workflowIds.length > 0
     ? await supabase
@@ -106,6 +116,71 @@ export default async function ClientPage({ params }: ClientPageProps) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Calendar Integration Card */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="w-5 h-5" />
+              Calendar Integration
+            </CardTitle>
+            <CardDescription>
+              Connect a calendar to enable automatic appointment booking
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {calendarConnection ? (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-green-500/10 border border-green-500/30 flex items-center justify-center">
+                    <CheckCircle2 className="w-5 h-5 text-green-400" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-foreground">
+                      {calendarConnection.provider === 'google' ? 'Google Calendar' : 'Calendar'} Connected
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Calendar ID: {calendarConnection.calendar_id || 'Primary'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href={`/connect/calendar/${client.id}`} target="_blank">
+                      Reconnect
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                    <LinkIcon className="w-5 h-5 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-foreground">No calendar connected</p>
+                    <p className="text-sm text-muted-foreground">
+                      Share the link below with your client to connect their calendar
+                    </p>
+                  </div>
+                </div>
+                <Button size="sm" asChild>
+                  <Link href={`/connect/calendar/${client.id}`} target="_blank">
+                    Connect Calendar
+                  </Link>
+                </Button>
+              </div>
+            )}
+            <Separator className="my-4" />
+            <div>
+              <p className="text-sm text-muted-foreground mb-2">Shareable link for this client:</p>
+              <code className="block p-3 bg-muted rounded-lg text-sm text-foreground break-all">
+                {process.env.NEXT_PUBLIC_APP_URL || 'https://your-app.com'}/connect/calendar/{client.id}
+              </code>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle>Client Details</CardTitle>
