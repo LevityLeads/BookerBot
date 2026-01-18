@@ -6,6 +6,7 @@ import {
   MessageForPrompt
 } from '@/types/ai'
 import { Contact, Message } from '@/types/database'
+import { TimeSlot } from '@/lib/calendar'
 
 interface PromptBuildParams {
   knowledge: WorkflowKnowledge
@@ -16,6 +17,7 @@ interface PromptBuildParams {
   channel: 'sms' | 'whatsapp' | 'email'
   appointmentDuration: number
   workflowInstructions?: string // Custom instructions from the workflow
+  offeredSlots?: TimeSlot[] // Available slots offered during booking flow
 }
 
 export class PromptBuilder {
@@ -101,6 +103,24 @@ ${this.formatQualificationStatus(context, knowledge)}
 ${context.summary || 'This is a new conversation - they just replied to your initial outreach.'}
 Total messages exchanged: ${context.messageCount}
 `
+
+    // Add booking constraints if slots have been offered
+    if (params.offeredSlots && params.offeredSlots.length > 0) {
+      prompt += `
+## BOOKING CONSTRAINTS (CRITICAL - READ CAREFULLY)
+You have already offered the following available time slots to ${contactName}:
+${params.offeredSlots.map((slot, i) => `${i + 1}. ${slot.formatted}`).join('\n')}
+
+CRITICAL RULES FOR BOOKING:
+1. You can ONLY confirm appointments for times listed above - these are the only available slots
+2. If they request a time NOT on this list (like "12pm" when 12pm isn't listed), you MUST say that time isn't available and redirect them to the options above
+3. Do NOT confirm times that weren't offered - the calendar shows those times are already booked
+4. If they pick a time from the list, confirm it enthusiastically
+5. If they ask for a different time entirely, offer to have someone reach out to find another option
+
+Example of what NOT to do: If they say "12pm tomorrow" but 12pm isn't in your list above, DO NOT say "12pm works!" - instead say something like "I don't have 12pm available, but I do have [list times from above]. Would any of those work?"
+`
+    }
 
     // Add FAQs if available
     if (knowledge.faqs.length > 0) {
