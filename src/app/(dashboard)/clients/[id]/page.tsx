@@ -6,7 +6,11 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { ArrowLeft, Pencil, Calendar, Clock, Phone, CheckCircle2, LinkIcon } from 'lucide-react'
-import { BusinessHours, Client, Workflow, CalendarConnection } from '@/types/database'
+import { BusinessHours, Client, Workflow, CalendarConnection, Appointment, Contact } from '@/types/database'
+
+type AppointmentWithContact = Appointment & {
+  contacts: Pick<Contact, 'first_name' | 'last_name' | 'phone'>
+}
 
 interface ClientPageProps {
   params: { id: string }
@@ -45,6 +49,18 @@ export default async function ClientPage({ params }: ClientPageProps) {
     .single() as { data: CalendarConnection | null }
 
   const calendarConnection = calendarData
+
+  // Fetch appointments for this client
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: appointmentsData } = await (supabase as any)
+    .from('appointments')
+    .select('*, contacts(first_name, last_name, phone)')
+    .eq('client_id', params.id)
+    .gte('start_time', new Date().toISOString())
+    .order('start_time', { ascending: true })
+    .limit(10) as { data: AppointmentWithContact[] | null }
+
+  const appointments = appointmentsData || []
 
   const statsResult = workflowIds.length > 0
     ? await supabase
@@ -178,6 +194,82 @@ export default async function ClientPage({ params }: ClientPageProps) {
                 {process.env.NEXT_PUBLIC_APP_URL || 'https://your-app.com'}/connect/calendar/{client.id}
               </code>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Upcoming Appointments Card */}
+        <Card className="lg:col-span-2">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="w-5 h-5" />
+                Upcoming Appointments
+              </CardTitle>
+              <CardDescription>
+                {appointments.length} upcoming appointment{appointments.length !== 1 ? 's' : ''}
+              </CardDescription>
+            </div>
+            <Button size="sm" variant="outline" asChild>
+              <Link href={`/appointments?client=${client.id}`}>View All</Link>
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {appointments.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Calendar className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p>No upcoming appointments</p>
+                <p className="text-sm mt-1">Appointments will appear here when contacts book via AI conversations</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {appointments.map((apt) => {
+                  const startDate = new Date(apt.start_time)
+                  const endDate = new Date(apt.end_time)
+                  const isToday = new Date().toDateString() === startDate.toDateString()
+                  const isTomorrow = new Date(Date.now() + 86400000).toDateString() === startDate.toDateString()
+
+                  return (
+                    <div
+                      key={apt.id}
+                      className="flex items-center gap-4 p-4 bg-secondary/50 rounded-lg border border-border/50"
+                    >
+                      <div className="flex-shrink-0 w-14 h-14 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex flex-col items-center justify-center">
+                        <span className="text-xs text-cyan-400 uppercase">
+                          {startDate.toLocaleDateString('en-US', { month: 'short' })}
+                        </span>
+                        <span className="text-lg font-bold text-cyan-300">
+                          {startDate.getDate()}
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-foreground truncate">
+                            {apt.contacts?.first_name} {apt.contacts?.last_name}
+                          </p>
+                          {isToday && (
+                            <Badge variant="success" className="text-xs">Today</Badge>
+                          )}
+                          {isTomorrow && (
+                            <Badge variant="outline" className="text-xs">Tomorrow</Badge>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {startDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })} - {endDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
+                        </p>
+                        {apt.contacts?.phone && (
+                          <p className="text-xs text-muted-foreground">{apt.contacts.phone}</p>
+                        )}
+                      </div>
+                      <Badge
+                        variant={apt.status === 'confirmed' ? 'success' : apt.status === 'cancelled' ? 'destructive' : 'secondary'}
+                      >
+                        {apt.status}
+                      </Badge>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </CardContent>
         </Card>
 
