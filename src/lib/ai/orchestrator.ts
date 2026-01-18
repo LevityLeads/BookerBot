@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { generateResponse } from './client'
+import { generateResponse, estimateCost } from './client'
 import { contextManager } from './context-manager'
 import { promptBuilder } from './prompt-builder'
 import { intentDetector } from './intent-detector'
@@ -138,7 +138,8 @@ export class ConversationOrchestrator {
       qualificationAssessment.status
     )
 
-    // 14. Save AI response to database
+    // 14. Save AI response to database with detailed token tracking
+    const aiCost = estimateCost(aiResponse.usage)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (supabase as any).from('messages').insert({
       contact_id: input.contactId,
@@ -147,7 +148,11 @@ export class ConversationOrchestrator {
       content: aiResponse.content,
       status: 'pending', // Will be updated when actually sent via Twilio
       ai_generated: true,
-      tokens_used: aiResponse.usage.total
+      tokens_used: aiResponse.usage.total,
+      input_tokens: aiResponse.usage.input,
+      output_tokens: aiResponse.usage.output,
+      ai_model: aiResponse.usage.model,
+      ai_cost: aiCost
     })
 
     // 15. Update contact in database

@@ -250,6 +250,10 @@ export type Database = {
           error_message: string | null
           ai_generated: boolean
           tokens_used: number | null
+          input_tokens: number | null
+          output_tokens: number | null
+          ai_model: string | null
+          ai_cost: number | null
           created_at: string
         }
         Insert: {
@@ -263,6 +267,10 @@ export type Database = {
           error_message?: string | null
           ai_generated?: boolean
           tokens_used?: number | null
+          input_tokens?: number | null
+          output_tokens?: number | null
+          ai_model?: string | null
+          ai_cost?: number | null
           created_at?: string
         }
         Update: {
@@ -276,6 +284,10 @@ export type Database = {
           error_message?: string | null
           ai_generated?: boolean
           tokens_used?: number | null
+          input_tokens?: number | null
+          output_tokens?: number | null
+          ai_model?: string | null
+          ai_cost?: number | null
           created_at?: string
         }
       }

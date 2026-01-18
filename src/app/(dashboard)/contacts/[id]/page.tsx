@@ -15,6 +15,8 @@ import {
   Clock,
   User,
   Building2,
+  Coins,
+  Cpu,
 } from 'lucide-react'
 import { Contact, Workflow, Client, Message, Appointment } from '@/types/database'
 
@@ -70,6 +72,11 @@ export default async function ContactDetailPage({
         content,
         status,
         ai_generated,
+        tokens_used,
+        input_tokens,
+        output_tokens,
+        ai_model,
+        ai_cost,
         created_at
       ),
       appointments(
@@ -91,6 +98,12 @@ export default async function ContactDetailPage({
 
   const typedContact = contact as unknown as ContactWithDetails
   const contactName = `${typedContact.first_name || ''} ${typedContact.last_name || ''}`.trim() || 'Unknown Contact'
+
+  // Calculate total AI costs for this conversation
+  const aiMessages = typedContact.messages.filter(m => m.ai_generated)
+  const totalTokens = aiMessages.reduce((sum, m) => sum + (m.tokens_used || 0), 0)
+  const totalCost = aiMessages.reduce((sum, m) => sum + (m.ai_cost || 0), 0)
+  const currentModel = aiMessages.length > 0 ? aiMessages[aiMessages.length - 1].ai_model : null
 
   return (
     <div className="p-8">
@@ -135,7 +148,7 @@ export default async function ContactDetailPage({
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-6 mb-6">
+      <div className="grid grid-cols-4 gap-6 mb-6">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Workflow</CardTitle>
@@ -176,6 +189,28 @@ export default async function ContactDetailPage({
             <p className="text-sm text-muted-foreground">
               Created {new Date(typedContact.created_at).toLocaleDateString()}
             </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+              <Coins className="w-4 h-4" />
+              AI Cost
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-foreground">
+              ${totalCost.toFixed(4)}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {totalTokens.toLocaleString()} tokens ({aiMessages.length} msgs)
+            </p>
+            {currentModel && (
+              <p className="text-xs text-muted-foreground/70 mt-1 truncate" title={currentModel}>
+                {currentModel.replace('claude-', '').replace('-20251101', '')}
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -225,16 +260,27 @@ export default async function ContactDetailPage({
                       >
                         <p className="text-sm">{message.content}</p>
                         <div
-                          className={`flex items-center gap-2 mt-1 text-xs ${
+                          className={`flex items-center gap-2 mt-1 text-xs flex-wrap ${
                             message.direction === 'outbound' ? 'text-cyan-200' : 'text-muted-foreground'
                           }`}
                         >
                           <Clock className="w-3 h-3" />
                           {new Date(message.created_at).toLocaleString()}
                           {message.ai_generated && (
-                            <Badge variant="outline" className="text-xs py-0 px-1">
-                              AI
-                            </Badge>
+                            <>
+                              <Badge variant="outline" className="text-xs py-0 px-1">
+                                AI
+                              </Badge>
+                              {(message.ai_cost !== null || message.tokens_used) && (
+                                <span className="flex items-center gap-1" title={`In: ${message.input_tokens || '?'} / Out: ${message.output_tokens || '?'} tokens`}>
+                                  <Cpu className="w-3 h-3" />
+                                  {message.ai_cost !== null
+                                    ? `$${message.ai_cost.toFixed(4)}`
+                                    : `${message.tokens_used?.toLocaleString()} tok`
+                                  }
+                                </span>
+                              )}
+                            </>
                           )}
                         </div>
                       </div>

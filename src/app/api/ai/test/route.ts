@@ -139,6 +139,10 @@ export async function POST(request: Request) {
       error_message: null,
       ai_generated: msg.role === 'assistant',
       tokens_used: null,
+      input_tokens: null,
+      output_tokens: null,
+      ai_model: null,
+      ai_cost: null,
       created_at: new Date(Date.now() - (body.conversationHistory!.length - i) * 60000).toISOString()
     }))
 
