@@ -87,9 +87,23 @@ export async function sendMessage(params: SendMessageParams): Promise<SendMessag
     }
   } catch (error) {
     console.error('Twilio send error:', error)
+
+    // Check for specific Twilio error codes
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error sending message'
+
+    // Detect opt-out/unsubscribed error (Twilio error code 21610)
+    if (errorMessage.includes('unsubscribed') ||
+        errorMessage.includes('21610') ||
+        errorMessage.includes('blacklist')) {
+      return {
+        success: false,
+        error: 'Recipient has opted out via Twilio. To re-enable messaging, remove them from the opt-out list in Twilio Console → Messaging → Opt-Out Management.'
+      }
+    }
+
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error sending message'
+      error: errorMessage
     }
   }
 }
