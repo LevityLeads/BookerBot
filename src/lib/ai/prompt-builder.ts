@@ -18,6 +18,7 @@ interface PromptBuildParams {
   appointmentDuration: number
   workflowInstructions?: string // Custom instructions from the workflow
   offeredSlots?: TimeSlot[] // Available slots offered during booking flow
+  timezone?: string // Client's timezone (e.g., 'Europe/London')
 }
 
 export class PromptBuilder {
@@ -97,6 +98,35 @@ ${this.formatQualificationStatus(context, knowledge)}
 `
     }
 
+    // Add current date/time context
+    const timezone = params.timezone || 'Europe/London'
+    const now = new Date()
+    const dateFormatter = new Intl.DateTimeFormat('en-GB', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+      timeZone: timezone,
+    })
+    const tomorrowDate = new Date(now.getTime() + 24 * 60 * 60 * 1000)
+    const tomorrowFormatter = new Intl.DateTimeFormat('en-GB', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      timeZone: timezone,
+    })
+
+    prompt += `
+## CURRENT DATE & TIME
+Right now it's ${dateFormatter.format(now)} (${timezone})
+Tomorrow is ${tomorrowFormatter.format(tomorrowDate)}
+
+Use this to interpret relative dates like "tomorrow", "next Monday", etc.
+`
+
     // Add conversation context
     prompt += `
 ## CONVERSATION CONTEXT
@@ -108,20 +138,21 @@ Total messages exchanged: ${context.messageCount}
     if (params.offeredSlots && params.offeredSlots.length > 0) {
       prompt += `
 ## CALENDAR AVAILABILITY (CRITICAL)
-You checked the calendar and these are the ONLY available times:
+You've already checked the calendar. These are the ONLY available times:
 ${params.offeredSlots.map((slot, i) => `${i + 1}. ${slot.formatted}`).join('\n')}
 
-These times are based on actual calendar availability. Everything else is booked.
+Everything else is booked. You know this already - don't pretend to check again.
 
 HOW TO HANDLE TIME REQUESTS:
-- If they pick one of the times above → confirm it naturally (the booking system will handle the rest)
-- If they request a time NOT listed (e.g., "how about 12pm?" but 12pm isn't above) → that slot is taken. Say something like "12's already booked - would [mention 1-2 times from above] work instead?"
-- If they want a completely different day/time range → offer to have someone reach out to find something
+- If they say "tomorrow at 12" → use the date above to figure out what day tomorrow is, then check if 12pm that day is in your list
+- If they pick a time from the list → confirm it (the booking system handles the rest)
+- If they request a time NOT in the list → that time is taken. Tell them: "[time] is booked - I've got [mention 1-2 available times]. Any of those work?"
+- If none of the times work for them → offer to have someone reach out to find another option
 
 DO NOT:
-- Confirm times that aren't in the list above (they're genuinely not available)
-- Say "let me check" - you already checked, these are the results
-- Be apologetic about limited availability - just be matter-of-fact about it
+- Confirm times that aren't in the list (they're genuinely unavailable)
+- Say "let me check" or ask them to confirm the date - you already know the date
+- Be overly apologetic - just be matter-of-fact
 `
     }
 

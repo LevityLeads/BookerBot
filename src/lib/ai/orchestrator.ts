@@ -171,7 +171,8 @@ export class ConversationOrchestrator {
       channel: typedContact.workflows.channel,
       appointmentDuration: typedContact.workflows.appointment_duration_minutes,
       workflowInstructions: typedContact.workflows.instructions,
-      offeredSlots: bookingState.isActive ? bookingState.offeredSlots : undefined
+      offeredSlots: bookingState.isActive ? bookingState.offeredSlots : undefined,
+      timezone: typedContact.workflows.clients.timezone || undefined
     })
 
     const aiResponse = await generateResponse(promptConfig)
