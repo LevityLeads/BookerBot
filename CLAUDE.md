@@ -202,5 +202,5 @@ import { Dialog, DialogContent, DialogHeader } from '@/components/ui/dialog'
 - [x] Sprint 2: Contact Management (CRUD, CSV import)
 - [x] Sprint 3: AI Conversation Engine
 - [x] Sprint 4: Twilio SMS/WhatsApp Integration
-- [ ] Sprint 5: Calendar Integration (Google Calendar)
+- [x] Sprint 5: Calendar Integration (Google Calendar)
 - [ ] Sprint 6: Dashboard & Analytics
