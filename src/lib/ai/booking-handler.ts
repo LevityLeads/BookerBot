@@ -98,7 +98,7 @@ class BookingHandler {
 
       if (slots.length === 0) {
         return {
-          message: "I'd love to get you booked in, but I'm not seeing any available slots in the next two weeks. Can I have someone reach out to you directly to find a time that works?",
+          message: "Calendar's pretty packed for the next couple weeks. Want me to have someone reach out to find a time that works?",
           bookingState: {
             ...bookingState,
             isActive: true,
@@ -188,7 +188,7 @@ class BookingHandler {
     } catch (error) {
       console.error('Failed to create appointment:', error)
       return {
-        message: "I'm having trouble booking that time. Let me have someone reach out to confirm your appointment directly.",
+        message: "Hmm, something went wrong on my end. Let me have someone reach out to lock in your appointment.",
         bookingState,
         appointmentCreated: false,
         continueWithAI: false,
@@ -281,9 +281,17 @@ class BookingHandler {
       slotsByDay.get(dayKey)!.push(slot)
     }
 
+    // Vary the opening to sound more natural
+    const openers = [
+      `${firstName}, here's what I've got available:`,
+      `Let me check the calendar... Here's what works:`,
+      `${firstName}, I've got these times open:`,
+    ]
+    const opener = openers[Math.floor(Math.random() * openers.length)]
+
     // Build message
     const lines: string[] = []
-    lines.push(`Great ${firstName}! Here are some times I have available:`)
+    lines.push(opener)
     lines.push('')
 
     let slotNum = 1
@@ -295,7 +303,7 @@ class BookingHandler {
     })
 
     lines.push('')
-    lines.push('Just let me know which works best for you!')
+    lines.push('Which works for you?')
 
     return lines.join('\n')
   }
@@ -304,7 +312,12 @@ class BookingHandler {
    * Build a confirmation message after booking
    */
   private buildConfirmationMessage(firstName: string, slot: TimeSlot): string {
-    return `Perfect ${firstName}, you're all booked for ${slot.formatted}! You'll receive a calendar invite shortly. Looking forward to speaking with you then!`
+    const confirmations = [
+      `Done - you're booked for ${slot.formatted}. Calendar invite coming your way.`,
+      `Locked in for ${slot.formatted}, ${firstName}. You'll get a calendar invite shortly.`,
+      `${slot.formatted} it is. I'll send over a calendar invite now.`,
+    ]
+    return confirmations[Math.floor(Math.random() * confirmations.length)]
   }
 
   /**
