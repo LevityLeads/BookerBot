@@ -182,6 +182,10 @@ export function formatSlotsForConversation(slots: TimeSlot[]): string {
 /**
  * Parse a user's time selection from conversation
  * Returns the matching slot or null if not found
+ *
+ * IMPORTANT: This function should only return a slot if we're CONFIDENT
+ * the user is selecting that specific slot. If they request a time that
+ * isn't available, we return null so the AI can redirect them.
  */
 export function parseTimeSelection(
   input: string,
@@ -213,11 +217,10 @@ export function parseTimeSelection(
     }
   }
 
-  // Try to match against formatted slots
+  // Try to match against formatted slots (exact match)
   for (const slot of availableSlots) {
     const normalizedSlot = slot.formatted.toLowerCase()
 
-    // Exact or contains match
     if (
       normalizedInput.includes(normalizedSlot) ||
       normalizedSlot.includes(normalizedInput)
@@ -226,12 +229,8 @@ export function parseTimeSelection(
     }
   }
 
-  // Extract day and time components from input for flexible matching
-  const dayNames = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
-  const inputDay = dayNames.find(day => normalizedInput.includes(day))
-
   // Parse time from input - handle various formats
-  // "2pm", "2:00pm", "2:00 pm", "14:00", "2 pm", "at 2"
+  // "2pm", "2:00pm", "2:00 pm", "14:00", "2 pm", "at 2", "12"
   const timePatterns = [
     /(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i,  // 2pm, 2:00pm, 2:00 pm
     /at\s+(\d{1,2})(?::(\d{2}))?(?:\s*(am|pm))?/i,  // at 2, at 2pm
@@ -239,6 +238,7 @@ export function parseTimeSelection(
 
   let inputHour: number | null = null
   let inputMinute = 0
+  let hasMeridiem = false
 
   for (const pattern of timePatterns) {
     const match = normalizedInput.match(pattern)
@@ -246,6 +246,7 @@ export function parseTimeSelection(
       inputHour = parseInt(match[1], 10)
       inputMinute = match[2] ? parseInt(match[2], 10) : 0
       const meridiem = match[3]?.toLowerCase()
+      hasMeridiem = !!meridiem
 
       // Convert to 24-hour if needed
       if (meridiem === 'pm' && inputHour < 12) {
@@ -257,50 +258,64 @@ export function parseTimeSelection(
     }
   }
 
-  // Score each slot based on how well it matches
-  let bestMatch: TimeSlot | null = null
-  let bestScore = 0
+  // Extract day from input
+  const dayNames = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+  const inputDay = dayNames.find(day => normalizedInput.includes(day))
 
-  for (const slot of availableSlots) {
-    const normalizedSlot = slot.formatted.toLowerCase()
-    let score = 0
+  // If user specified a time, we MUST match that time (or return null)
+  // We can't just book them for a different time!
+  if (inputHour !== null) {
+    // Find slots that match the requested time
+    const timeMatches: TimeSlot[] = []
 
-    // Check day match
-    const slotDay = dayNames.find(day => normalizedSlot.includes(day))
-    if (inputDay && slotDay === inputDay) {
-      score += 10
-    }
-
-    // Check time match
-    if (inputHour !== null) {
+    for (const slot of availableSlots) {
       const slotHour = slot.start.getHours()
       const slotMinute = slot.start.getMinutes()
 
-      if (slotHour === inputHour && slotMinute === inputMinute) {
-        score += 20  // Exact time match
-      } else if (slotHour === inputHour) {
-        score += 10  // Hour matches (e.g., "2pm" matches "2:00 pm" and "2:30 pm")
+      // Check if time matches
+      const exactTimeMatch = slotHour === inputHour && slotMinute === inputMinute
+      const hourMatch = slotHour === inputHour
+
+      // Also check for ambiguous times without am/pm (e.g., "at 2" could be 2am or 2pm)
+      const ambiguousMatch = !hasMeridiem && (
+        slotHour === inputHour ||
+        slotHour === (inputHour + 12) % 24 ||
+        slotHour === (inputHour - 12 + 24) % 24
+      )
+
+      if (exactTimeMatch || (hourMatch && inputMinute === 0) || ambiguousMatch) {
+        // If day is also specified, it must match
+        if (inputDay) {
+          const normalizedSlot = slot.formatted.toLowerCase()
+          const slotDay = dayNames.find(day => normalizedSlot.includes(day))
+          if (slotDay === inputDay) {
+            timeMatches.push(slot)
+          }
+        } else {
+          timeMatches.push(slot)
+        }
       }
     }
 
-    // Partial text matches
-    const slotParts = normalizedSlot.split(/\s+/)
-    for (const part of slotParts) {
-      if (part.length > 2 && normalizedInput.includes(part)) {
-        score += 2
-      }
+    // If we found exactly one match, return it
+    if (timeMatches.length === 1) {
+      return timeMatches[0]
     }
 
-    if (score > bestScore) {
-      bestScore = score
-      bestMatch = slot
+    // If multiple matches (e.g., same time on different days), prefer earliest
+    if (timeMatches.length > 1) {
+      return timeMatches[0]
     }
+
+    // User specified a time that doesn't exist in our slots - return null
+    // so the AI can tell them that time isn't available
+    return null
   }
 
-  // Only return if we have a reasonable confidence match
-  // Day + exact time = 30, Day + hour = 20, just day = 10
-  if (bestScore >= 10) {
-    return bestMatch
+  // If they only specified a day without a time, don't auto-select
+  // Let the AI ask them which time on that day works
+  if (inputDay) {
+    return null
   }
 
   return null
