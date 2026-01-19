@@ -48,6 +48,17 @@ const BOOKING_KEYWORDS = [
   'slot'
 ]
 
+// Patterns that indicate someone is selecting/confirming a time
+const TIME_SELECTION_PATTERNS = [
+  /\b\d{1,2}(?::\d{2})?\s*(?:am|pm)\b/i,           // "3pm", "10:30am"
+  /\b(?:at|@)\s*\d{1,2}(?::\d{2})?\s*(?:am|pm)?\b/i, // "at 3", "@ 2pm"
+  /\bthe\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?\s*(?:works?|is good|sounds good|please|slot)?\b/i, // "the 3pm works"
+  /\b(?:let'?s?\s+(?:do|go with)|i'?ll?\s+take|works?\s+for\s+me)\b/i, // "let's do", "I'll take", "works for me"
+  /\b(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)\s+(?:at|@)?\s*\d{1,2}/i, // "monday at 3"
+  /\b(?:tomorrow|today)\s+(?:at|@)?\s*\d{1,2}/i,  // "tomorrow at 2"
+  /\bi\s+(?:meant|mean|want|prefer|said)\s+\d{1,2}/i, // "I meant 3pm", "I want 2"
+]
+
 const POSITIVE_KEYWORDS = [
   'yes',
   'sure',
@@ -152,11 +163,22 @@ export class IntentDetector {
       }
     }
 
-    // Check booking interest
+    // Check booking interest (keywords)
     if (this.matchesKeywords(normalized, BOOKING_KEYWORDS)) {
       return {
         intent: 'booking_interest',
         confidence: 0.8,
+        entities: this.extractTimeEntities(normalized),
+        requiresEscalation: false
+      }
+    }
+
+    // Check for time selection patterns (someone picking/confirming a time)
+    if (this.matchesTimeSelection(normalized)) {
+      console.log('[IntentDetector] Detected time selection pattern:', normalized)
+      return {
+        intent: 'booking_interest',
+        confidence: 0.85,
         entities: this.extractTimeEntities(normalized),
         requiresEscalation: false
       }
@@ -203,6 +225,10 @@ export class IntentDetector {
 
   private matchesKeywords(text: string, keywords: string[]): boolean {
     return keywords.some(keyword => text.includes(keyword))
+  }
+
+  private matchesTimeSelection(text: string): boolean {
+    return TIME_SELECTION_PATTERNS.some(pattern => pattern.test(text))
   }
 
   private extractTimeEntities(text: string): Record<string, string> {
