@@ -69,18 +69,7 @@ export class ConversationOrchestrator {
 
     const messageHistory = (messages || []) as Message[]
 
-    // 5. Save inbound message to database
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase as any).from('messages').insert({
-      contact_id: input.contactId,
-      direction: 'inbound',
-      channel: typedContact.workflows.channel,
-      content: input.message,
-      status: 'received',
-      ai_generated: false
-    })
-
-    // 6. Detect intent
+    // 5. Detect intent (inbound message already saved by webhook caller)
     const intent = await intentDetector.detect(input.message, context)
 
     // 7. Check for opt-out first (fast path)
