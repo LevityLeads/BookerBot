@@ -160,17 +160,27 @@ If they said "sounds good" without specifying → ask which slot they want
 
       prompt += `
 HOW TO HANDLE TIME REQUESTS:
+- RESPECT THEIR DAY PREFERENCE: If they ask for a specific day (e.g., "Wednesday", "Weds", "Thurs"), ONLY offer times on THAT day. Don't suggest a different day unless that day is unavailable.
 - If they say "tomorrow at 12" → use the date above to figure out what day tomorrow is, then check if 12pm that day is in your list
 - If they pick a SPECIFIC time from the list (like "Monday at 2pm") → confirm it (the booking system handles the rest)
-- If they just say a day without a time (like "Monday works") → ask which time on that day
-- If they request a time NOT in the list → that time is taken. Tell them: "[time] is booked - I've got [mention 1-2 available times]. Any of those work?"
+- If they just say a day without a time (like "Monday works", "Weds", "Friday please") → ask which time on that SPECIFIC day - look at your available slots and list ONLY the times available on that day
+- If they request a time NOT in the list → that time is taken. Tell them: "[time] is booked - I've got [mention 1-2 available times on the SAME DAY if possible]. Any of those work?"
+- If their requested day has NO availability → tell them that day is full and ask about nearby days
 - If none of the times work for them → offer to have someone reach out to find another option
 
+CRITICAL - CONTEXT AND LOGIC:
+- Pay attention to what they ACTUALLY asked for - if they want Wednesday, give them Wednesday options
+- Don't randomly offer Monday when they asked about Wednesday
+- Read the conversation context - understand what day/time they're interested in
+- Be logical and helpful, not robotic
+
 DO NOT:
+- Offer times on DIFFERENT days than what they asked for (unless their day is unavailable)
 - Confirm times that aren't in the list (they're genuinely unavailable)
 - Say "let me check" or ask them to confirm the date - you already know the date
 - Be overly apologetic - just be matter-of-fact
 - EVER say "you're booked" unless they gave you a SPECIFIC time that matches one in your list
+- Ignore their day preference and suggest random times
 `
     }
 
