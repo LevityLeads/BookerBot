@@ -48,6 +48,29 @@ const BOOKING_KEYWORDS = [
   'slot'
 ]
 
+const RESCHEDULE_KEYWORDS = [
+  'reschedule',
+  'change the time',
+  'change the meeting',
+  'change the appointment',
+  'change my appointment',
+  'change my booking',
+  'move the meeting',
+  'move the appointment',
+  'move my appointment',
+  'move it to',
+  'different time',
+  'different day',
+  'can we do',
+  'switch to',
+  'change to',
+  'move to',
+  'push back',
+  'push it back',
+  'postpone',
+  'cancel and rebook'
+]
+
 // Patterns that indicate someone is selecting/confirming a time
 const TIME_SELECTION_PATTERNS = [
   /\b\d{1,2}(?::\d{2})?\s*(?:am|pm)\b/i,           // "3pm", "10:30am"
@@ -163,6 +186,17 @@ export class IntentDetector {
       }
     }
 
+    // Check for reschedule request (before booking - more specific)
+    if (this.matchesKeywords(normalized, RESCHEDULE_KEYWORDS)) {
+      console.log('[IntentDetector] Detected reschedule intent:', normalized)
+      return {
+        intent: 'reschedule',
+        confidence: 0.9,
+        entities: this.extractTimeEntities(normalized),
+        requiresEscalation: false
+      }
+    }
+
     // Check booking interest (keywords)
     if (this.matchesKeywords(normalized, BOOKING_KEYWORDS)) {
       return {
@@ -259,6 +293,7 @@ export class IntentDetector {
   private mapIntentString(intent: string): Intent {
     const validIntents: Intent[] = [
       'booking_interest',
+      'reschedule',
       'question',
       'objection',
       'positive_response',

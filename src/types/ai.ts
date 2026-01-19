@@ -143,6 +143,7 @@ export type ConversationGoal =
 
 export type Intent =
   | 'booking_interest'
+  | 'reschedule'
   | 'question'
   | 'objection'
   | 'positive_response'

@@ -31,6 +31,12 @@ export interface BookingState {
   offerAttempts: number
   /** Last specific slot offered as an alternative (for handling "yeah that works") */
   lastOfferedSlot: TimeSlot | null
+  /** Whether this is a reschedule (not new booking) */
+  isRescheduling: boolean
+  /** Existing appointment ID being rescheduled */
+  existingAppointmentId: string | null
+  /** Existing calendar event ID being rescheduled */
+  existingCalendarEventId: string | null
 }
 
 export interface BookingFlowResult {
@@ -40,7 +46,9 @@ export interface BookingFlowResult {
   bookingState: BookingState
   /** Whether an appointment was created */
   appointmentCreated: boolean
-  /** Appointment ID if created */
+  /** Whether an appointment was rescheduled */
+  appointmentRescheduled: boolean
+  /** Appointment ID if created or rescheduled */
   appointmentId?: string
   /** Whether to continue with normal AI response */
   continueWithAI: boolean
@@ -151,6 +159,7 @@ class BookingHandler {
         message: '',
         bookingState,
         appointmentCreated: false,
+        appointmentRescheduled: false,
         continueWithAI: true, // Let AI handle naturally
       }
     }
@@ -185,6 +194,7 @@ class BookingHandler {
             offerAttempts: bookingState.offerAttempts + 1,
           },
           appointmentCreated: false,
+          appointmentRescheduled: false,
           continueWithAI: false,
         }
       }
@@ -203,8 +213,12 @@ class BookingHandler {
           selectedSlot: null,
           offerAttempts: bookingState.offerAttempts + 1,
           lastOfferedSlot: null, // Clear when offering new set of slots
+          isRescheduling: false,
+          existingAppointmentId: null,
+          existingCalendarEventId: null,
         },
         appointmentCreated: false,
+        appointmentRescheduled: false,
         continueWithAI: false,
       }
     } catch (error) {
@@ -213,6 +227,7 @@ class BookingHandler {
         message: '',
         bookingState,
         appointmentCreated: false,
+        appointmentRescheduled: false,
         continueWithAI: true, // Let AI handle naturally
       }
     }
@@ -231,6 +246,7 @@ class BookingHandler {
         message: '',
         bookingState,
         appointmentCreated: false,
+        appointmentRescheduled: false,
         continueWithAI: true,
       }
     }
@@ -265,6 +281,7 @@ class BookingHandler {
               lastOfferedSlot: closestSlot, // Track for "yeah that works" responses
             },
             appointmentCreated: false,
+            appointmentRescheduled: false,
             continueWithAI: false,
           }
         }
@@ -289,6 +306,7 @@ class BookingHandler {
               lastOfferedSlot: slotsOnDay.length === 1 ? slotsOnDay[0] : null,
             },
             appointmentCreated: false,
+            appointmentRescheduled: false,
             continueWithAI: false,
           }
         } else {
@@ -302,6 +320,7 @@ class BookingHandler {
             message: noSlotsMessage,
             bookingState,
             appointmentCreated: false,
+            appointmentRescheduled: false,
             continueWithAI: false,
           }
         }
@@ -320,6 +339,7 @@ class BookingHandler {
           message: clarifyMessage,
           bookingState,
           appointmentCreated: false,
+          appointmentRescheduled: false,
           continueWithAI: false,
         }
       }
@@ -330,23 +350,31 @@ class BookingHandler {
         message: '',
         bookingState,
         appointmentCreated: false,
+        appointmentRescheduled: false,
         continueWithAI: true,
       }
     }
 
-    // Create the appointment
-    console.log('[BookingHandler] Creating appointment for slot:', {
+    // Create or reschedule the appointment
+    const isRescheduling = bookingState.isRescheduling
+    console.log(`[BookingHandler] ${isRescheduling ? 'Rescheduling' : 'Creating'} appointment for slot:`, {
       contactId: contact.id,
       contactEmail: contact.email || 'NO EMAIL - INVITE WILL NOT BE SENT',
       slotStart: selectedSlot.start.toISOString(),
       slotFormatted: selectedSlot.formatted,
+      isRescheduling,
+      existingAppointmentId: bookingState.existingAppointmentId,
     })
     try {
-      const appointment = await this.createAppointment(contact, selectedSlot)
-      const confirmationMessage = this.buildConfirmationMessage(
-        contact.first_name || 'there',
-        selectedSlot
+      const appointment = await this.createAppointment(
+        contact,
+        selectedSlot,
+        bookingState.existingAppointmentId,
+        bookingState.existingCalendarEventId
       )
+      const confirmationMessage = isRescheduling
+        ? this.buildRescheduleConfirmationMessage(contact.first_name || 'there', selectedSlot)
+        : this.buildConfirmationMessage(contact.first_name || 'there', selectedSlot)
 
       return {
         message: confirmationMessage,
@@ -356,7 +384,8 @@ class BookingHandler {
           isActive: false, // Flow complete
           lastOfferedSlot: null,
         },
-        appointmentCreated: true,
+        appointmentCreated: !bookingState.isRescheduling,
+        appointmentRescheduled: bookingState.isRescheduling,
         appointmentId: appointment.id,
         continueWithAI: false,
       }
@@ -366,6 +395,7 @@ class BookingHandler {
         message: "Hmm, something went wrong on my end. Let me have someone reach out to lock in your appointment.",
         bookingState,
         appointmentCreated: false,
+        appointmentRescheduled: false,
         continueWithAI: false,
       }
     }
@@ -629,17 +659,20 @@ class BookingHandler {
   }
 
   /**
-   * Create an appointment in the database and calendar
+   * Create or reschedule an appointment in the database and calendar
    */
   private async createAppointment(
     contact: ContactWithWorkflow,
-    slot: TimeSlot
+    slot: TimeSlot,
+    existingAppointmentId?: string | null,
+    existingCalendarEventId?: string | null
   ): Promise<{ id: string; calendarEventId?: string }> {
     const supabase = await createClient()
     const client = contact.workflows.clients
+    const isReschedule = !!existingAppointmentId
 
-    // Try to create calendar event
-    let calendarEventId: string | undefined
+    // Try to create/update calendar event
+    let calendarEventId: string | undefined = existingCalendarEventId || undefined
     const connection = await getCalendarConnectionForClient(client.id)
 
     if (connection && connection.connection.calendar_id) {
@@ -647,37 +680,67 @@ class BookingHandler {
         const contactName = `${contact.first_name || ''} ${contact.last_name || ''}`.trim() || 'Contact'
         const clientTimezone = client.timezone || 'Europe/London'
 
-        console.log('Creating calendar event:', {
-          calendarId: connection.connection.calendar_id,
-          clientId: client.id,
-          contactId: contact.id,
-          startTime: slot.start.toISOString(),
-          timezone: clientTimezone,
-        })
+        if (isReschedule && existingCalendarEventId) {
+          // Update existing calendar event
+          console.log('Updating calendar event:', {
+            eventId: existingCalendarEventId,
+            calendarId: connection.connection.calendar_id,
+            clientId: client.id,
+            contactId: contact.id,
+            newStartTime: slot.start.toISOString(),
+            timezone: clientTimezone,
+          })
 
-        const event = await connection.provider.createEvent(
-          connection.connection.calendar_id,
-          {
-            summary: `Call with ${client.name}`,
-            description: `Contact: ${contactName}\nPhone: ${contact.phone || 'N/A'}\nEmail: ${contact.email || 'N/A'}`,
-            start: slot.start,
-            end: slot.end,
-            attendeeEmail: contact.email || undefined,
-            attendeeName: contactName || undefined,
-            timeZone: clientTimezone,
-            addGoogleMeet: true,
-          }
-        )
-        calendarEventId = event.id
-        console.log('Calendar event created successfully:', event.id)
+          const event = await connection.provider.updateEvent(
+            connection.connection.calendar_id,
+            existingCalendarEventId,
+            {
+              summary: `Call with ${client.name}`,
+              description: `Contact: ${contactName}\nPhone: ${contact.phone || 'N/A'}\nEmail: ${contact.email || 'N/A'}`,
+              start: slot.start,
+              end: slot.end,
+              attendeeEmail: contact.email || undefined,
+              attendeeName: contactName || undefined,
+              timeZone: clientTimezone,
+            }
+          )
+          calendarEventId = event.id
+          console.log('Calendar event updated successfully:', event.id)
+        } else {
+          // Create new calendar event
+          console.log('Creating calendar event:', {
+            calendarId: connection.connection.calendar_id,
+            clientId: client.id,
+            contactId: contact.id,
+            startTime: slot.start.toISOString(),
+            timezone: clientTimezone,
+          })
+
+          const event = await connection.provider.createEvent(
+            connection.connection.calendar_id,
+            {
+              summary: `Call with ${client.name}`,
+              description: `Contact: ${contactName}\nPhone: ${contact.phone || 'N/A'}\nEmail: ${contact.email || 'N/A'}`,
+              start: slot.start,
+              end: slot.end,
+              attendeeEmail: contact.email || undefined,
+              attendeeName: contactName || undefined,
+              timeZone: clientTimezone,
+              addGoogleMeet: true,
+            }
+          )
+          calendarEventId = event.id
+          console.log('Calendar event created successfully:', event.id)
+        }
       } catch (error) {
-        console.error('Failed to create calendar event:', {
+        console.error('Failed to create/update calendar event:', {
           error: error instanceof Error ? error.message : error,
           clientId: client.id,
           contactId: contact.id,
           calendarId: connection.connection.calendar_id,
+          isReschedule,
         })
-        // Continue without calendar event - still create DB record
+        // Continue without calendar event - still update DB record
       }
     } else {
       console.log('Skipping calendar event creation:', {
@@ -687,25 +750,48 @@ class BookingHandler {
       })
     }
 
-    // Create appointment in database
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: appointment, error } = await (supabase as any)
-      .from('appointments')
-      .insert({
-        contact_id: contact.id,
-        workflow_id: contact.workflow_id,
-        client_id: client.id,
-        calendar_event_id: calendarEventId || null,
-        start_time: slot.start.toISOString(),
-        end_time: slot.end.toISOString(),
-        status: 'confirmed',
-        notes: `Booked automatically via conversation`,
-      })
-      .select('id')
-      .single() as { data: { id: string } | null; error: Error | null }
+    let appointmentId: string
 
-    if (error || !appointment) {
-      throw new Error(`Failed to create appointment: ${error?.message || 'Unknown error'}`)
+    if (isReschedule && existingAppointmentId) {
+      // Update existing appointment
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase as any)
+        .from('appointments')
+        .update({
+          start_time: slot.start.toISOString(),
+          end_time: slot.end.toISOString(),
+          calendar_event_id: calendarEventId || null,
+          notes: `Rescheduled automatically via conversation`,
+        })
+        .eq('id', existingAppointmentId)
+
+      if (error) {
+        throw new Error(`Failed to reschedule appointment: ${error.message}`)
+      }
+      appointmentId = existingAppointmentId
+      console.log('Appointment rescheduled successfully:', appointmentId)
+    } else {
+      // Create new appointment in database
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: appointment, error } = await (supabase as any)
+        .from('appointments')
+        .insert({
+          contact_id: contact.id,
+          workflow_id: contact.workflow_id,
+          client_id: client.id,
+          calendar_event_id: calendarEventId || null,
+          start_time: slot.start.toISOString(),
+          end_time: slot.end.toISOString(),
+          status: 'confirmed',
+          notes: `Booked automatically via conversation`,
+        })
+        .select('id')
+        .single() as { data: { id: string } | null; error: Error | null }
+
+      if (error || !appointment) {
+        throw new Error(`Failed to create appointment: ${error?.message || 'Unknown error'}`)
+      }
+      appointmentId = appointment.id
     }
 
     // Update contact status to booked
@@ -716,7 +802,7 @@ class BookingHandler {
       .eq('id', contact.id)
 
     return {
-      id: appointment.id,
+      id: appointmentId,
       calendarEventId,
     }
   }
@@ -866,6 +952,18 @@ class BookingHandler {
   }
 
   /**
+   * Build a confirmation message after rescheduling
+   */
+  private buildRescheduleConfirmationMessage(firstName: string, slot: TimeSlot): string {
+    const confirmations = [
+      `Done - I've moved your appointment to ${slot.formatted}. Updated invite on its way.`,
+      `All sorted, ${firstName}. You're now booked for ${slot.formatted}.`,
+      `Changed to ${slot.formatted}. I'll send you an updated calendar invite.`,
+    ]
+    return confirmations[Math.floor(Math.random() * confirmations.length)]
+  }
+
+  /**
    * Initialize empty booking state
    */
   createEmptyState(): BookingState {
@@ -876,6 +974,9 @@ class BookingHandler {
       selectedSlot: null,
       offerAttempts: 0,
       lastOfferedSlot: null,
+      isRescheduling: false,
+      existingAppointmentId: null,
+      existingCalendarEventId: null,
     }
   }
 
@@ -906,6 +1007,9 @@ class BookingHandler {
             formatted: state.lastOfferedSlot.formatted,
           }
         : null,
+      isRescheduling: state.isRescheduling,
+      existingAppointmentId: state.existingAppointmentId,
+      existingCalendarEventId: state.existingCalendarEventId,
     }
   }
 
@@ -936,7 +1040,165 @@ class BookingHandler {
       lastOfferedSlot: data.lastOfferedSlot
         ? parseSlot(data.lastOfferedSlot as { start: string; end: string; formatted: string })
         : null,
+      isRescheduling: Boolean(data.isRescheduling),
+      existingAppointmentId: (data.existingAppointmentId as string) || null,
+      existingCalendarEventId: (data.existingCalendarEventId as string) || null,
     }
+  }
+
+  /**
+   * Start the reschedule flow - find existing appointment and offer new slots
+   */
+  async startReschedule(
+    contact: ContactWithWorkflow,
+    bookingState: BookingState
+  ): Promise<BookingFlowResult> {
+    const client = contact.workflows.clients
+    const supabase = await createClient()
+
+    console.log('[BookingHandler] startReschedule called:', {
+      contactId: contact.id,
+      clientId: client.id,
+    })
+
+    // Find the existing appointment for this contact
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: existingAppointment, error: appointmentError } = await (supabase as any)
+      .from('appointments')
+      .select('id, calendar_event_id, start_time')
+      .eq('contact_id', contact.id)
+      .eq('status', 'confirmed')
+      .order('start_time', { ascending: false })
+      .limit(1)
+      .single()
+
+    if (appointmentError || !existingAppointment) {
+      console.log('[BookingHandler] No existing appointment found for reschedule:', appointmentError?.message)
+      return {
+        message: "I don't see an existing booking for you. Would you like to schedule a new appointment?",
+        bookingState,
+        appointmentCreated: false,
+        appointmentRescheduled: false,
+        continueWithAI: false,
+      }
+    }
+
+    console.log('[BookingHandler] Found existing appointment:', {
+      appointmentId: existingAppointment.id,
+      calendarEventId: existingAppointment.calendar_event_id,
+      currentStartTime: existingAppointment.start_time,
+    })
+
+    const connection = await getCalendarConnectionForClient(client.id)
+
+    if (!connection) {
+      console.log('[BookingHandler] No calendar connection found - cannot reschedule')
+      return {
+        message: "I can't reschedule right now - let me have someone reach out to help you change the time.",
+        bookingState,
+        appointmentCreated: false,
+        appointmentRescheduled: false,
+        continueWithAI: false,
+      }
+    }
+
+    try {
+      const businessHours = (client.business_hours as BusinessHours) || DEFAULT_BUSINESS_HOURS
+
+      const slots = await getAvailableSlots({
+        provider: connection.provider,
+        calendarId: connection.connection.calendar_id || 'primary',
+        businessHours,
+        timezone: client.timezone || 'Europe/London',
+        durationMinutes: contact.workflows.appointment_duration_minutes || 30,
+        daysAhead: 14,
+        maxSlots: 6,
+      })
+
+      console.log('[BookingHandler] Available slots for reschedule:', slots.length)
+
+      if (slots.length === 0) {
+        return {
+          message: "Calendar's pretty packed for the next couple weeks. Want me to have someone reach out to find a new time?",
+          bookingState: {
+            ...bookingState,
+            isActive: true,
+            isRescheduling: true,
+            existingAppointmentId: existingAppointment.id,
+            existingCalendarEventId: existingAppointment.calendar_event_id,
+            offerAttempts: bookingState.offerAttempts + 1,
+          },
+          appointmentCreated: false,
+          appointmentRescheduled: false,
+          continueWithAI: false,
+        }
+      }
+
+      const firstName = contact.first_name || 'there'
+      const message = this.buildRescheduleOfferMessage(firstName, slots)
+
+      return {
+        message,
+        bookingState: {
+          isActive: true,
+          offeredSlots: slots,
+          slotsOfferedAt: new Date().toISOString(),
+          selectedSlot: null,
+          offerAttempts: bookingState.offerAttempts + 1,
+          lastOfferedSlot: null,
+          isRescheduling: true,
+          existingAppointmentId: existingAppointment.id,
+          existingCalendarEventId: existingAppointment.calendar_event_id,
+        },
+        appointmentCreated: false,
+        appointmentRescheduled: false,
+        continueWithAI: false,
+      }
+    } catch (error) {
+      console.error('Failed to get available slots for reschedule:', error)
+      return {
+        message: "Something went wrong checking availability. Let me have someone reach out to help reschedule.",
+        bookingState,
+        appointmentCreated: false,
+        appointmentRescheduled: false,
+        continueWithAI: false,
+      }
+    }
+  }
+
+  /**
+   * Build message offering new times for rescheduling
+   */
+  private buildRescheduleOfferMessage(firstName: string, slots: TimeSlot[]): string {
+    const selectedSlots = this.selectDiverseSlots(slots, 4)
+
+    if (selectedSlots.length === 0) {
+      return `${firstName}, let me check on some times and get back to you.`
+    }
+
+    const timeOptions = this.formatSlotsNaturally(firstName, selectedSlots)
+      .replace(/does .* work for you\?/i, 'work instead?')
+      .replace(/Any of those work\?/i, 'Any of those work instead?')
+      .replace(/any of those suit you\?/i, 'any of those suit you instead?')
+
+    const templates = [
+      `No problem - when works better? I've got ${this.formatSlotOptions(selectedSlots)}.`,
+      `Sure thing. ${timeOptions}`,
+      `Let me move that for you. ${timeOptions}`,
+    ]
+
+    return templates[Math.floor(Math.random() * templates.length)]
+  }
+
+  /**
+   * Format slot options as a simple list
+   */
+  private formatSlotOptions(slots: TimeSlot[]): string {
+    const options = slots.map(s => s.formatted)
+    if (options.length === 1) return options[0]
+    if (options.length === 2) return `${options[0]} or ${options[1]}`
+    const last = options.pop()
+    return `${options.join(', ')}, or ${last}`
   }
 }
 
