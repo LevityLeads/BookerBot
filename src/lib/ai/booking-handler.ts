@@ -61,7 +61,13 @@ class BookingHandler {
    * Check if calendar is connected for a client
    */
   async isCalendarConnected(clientId: string): Promise<boolean> {
+    console.log('[BookingHandler] Checking calendar connection for client:', clientId)
     const connection = await getCalendarConnectionForClient(clientId)
+    console.log('[BookingHandler] Calendar connection result:', {
+      clientId,
+      hasConnection: !!connection,
+      calendarId: connection?.connection?.calendar_id || 'N/A',
+    })
     return connection !== null
   }
 
@@ -73,9 +79,16 @@ class BookingHandler {
     bookingState: BookingState
   ): Promise<BookingFlowResult> {
     const client = contact.workflows.clients
+    console.log('[BookingHandler] offerTimeSlots called:', {
+      contactId: contact.id,
+      clientId: client.id,
+      contactEmail: contact.email || 'NO EMAIL',
+    })
+
     const connection = await getCalendarConnectionForClient(client.id)
 
     if (!connection) {
+      console.log('[BookingHandler] No calendar connection found - skipping slot offer')
       // No calendar connected - can't offer slots
       return {
         message: '',
@@ -88,6 +101,12 @@ class BookingHandler {
     try {
       const businessHours = (client.business_hours as BusinessHours) || DEFAULT_BUSINESS_HOURS
 
+      console.log('[BookingHandler] Fetching available slots:', {
+        calendarId: connection.connection.calendar_id || 'primary',
+        timezone: client.timezone || 'Europe/London',
+        durationMinutes: contact.workflows.appointment_duration_minutes || 30,
+      })
+
       const slots = await getAvailableSlots({
         provider: connection.provider,
         calendarId: connection.connection.calendar_id || 'primary',
@@ -97,6 +116,8 @@ class BookingHandler {
         daysAhead: 14,
         maxSlots: 6,
       })
+
+      console.log('[BookingHandler] Available slots found:', slots.length)
 
       if (slots.length === 0) {
         return {
@@ -202,6 +223,12 @@ class BookingHandler {
     }
 
     // Create the appointment
+    console.log('[BookingHandler] Creating appointment for slot:', {
+      contactId: contact.id,
+      contactEmail: contact.email || 'NO EMAIL - INVITE WILL NOT BE SENT',
+      slotStart: selectedSlot.start.toISOString(),
+      slotFormatted: selectedSlot.formatted,
+    })
     try {
       const appointment = await this.createAppointment(contact, selectedSlot)
       const confirmationMessage = this.buildConfirmationMessage(

@@ -103,13 +103,31 @@ export class ConversationOrchestrator {
       (typedContact.conversation_context as Record<string, unknown>)?.bookingState as Record<string, unknown>
     )
 
+    console.log('[Booking Flow] State check:', {
+      contactId: input.contactId,
+      contactStatus: typedContact.status,
+      contactEmail: typedContact.email || 'NO EMAIL',
+      bookingActive: bookingState.isActive,
+      offeredSlotsCount: bookingState.offeredSlots.length,
+      offerAttempts: bookingState.offerAttempts,
+      intent: intent.intent,
+      qualificationStatus: qualificationAssessment.status,
+    })
+
     // If booking flow is active, try to handle time selection
     if (bookingState.isActive && bookingState.offeredSlots.length > 0) {
+      console.log('[Booking Flow] Active booking - handling time selection')
       const bookingResult = await bookingHandler.handleTimeSelection(
         typedContact,
         input.message,
         bookingState
       )
+
+      console.log('[Booking Flow] Time selection result:', {
+        appointmentCreated: bookingResult.appointmentCreated,
+        appointmentId: bookingResult.appointmentId,
+        continueWithAI: bookingResult.continueWithAI,
+      })
 
       if (!bookingResult.continueWithAI) {
         // Booking was handled - save response and return
@@ -128,15 +146,27 @@ export class ConversationOrchestrator {
       !bookingState.isActive &&
       typedContact.status !== 'booked'
     ) {
+      console.log('[Booking Flow] Checking calendar for client:', typedContact.workflows.clients.id)
       const hasCalendar = await bookingHandler.isCalendarConnected(
         typedContact.workflows.clients.id
       )
+
+      console.log('[Booking Flow] Calendar check:', {
+        hasCalendar,
+        offerAttempts: bookingState.offerAttempts,
+        willOfferSlots: hasCalendar && bookingState.offerAttempts < 2,
+      })
 
       if (hasCalendar && bookingState.offerAttempts < 2) {
         const bookingResult = await bookingHandler.offerTimeSlots(
           typedContact,
           bookingState
         )
+
+        console.log('[Booking Flow] Offered slots result:', {
+          slotsOffered: bookingResult.bookingState.offeredSlots.length,
+          continueWithAI: bookingResult.continueWithAI,
+        })
 
         if (!bookingResult.continueWithAI) {
           return this.saveBookingResponse(
@@ -147,6 +177,13 @@ export class ConversationOrchestrator {
           )
         }
       }
+    } else {
+      console.log('[Booking Flow] Not offering slots - conditions not met:', {
+        isBookingInterest: intent.intent === 'booking_interest',
+        isQualified: qualificationAssessment.status === 'qualified',
+        bookingActive: bookingState.isActive,
+        contactStatus: typedContact.status,
+      })
     }
 
     // 11. Build prompt and generate response

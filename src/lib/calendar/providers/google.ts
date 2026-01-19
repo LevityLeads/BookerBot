@@ -136,10 +136,17 @@ export class GoogleCalendarProvider implements CalendarProvider {
     options: RequestInit = {}
   ): Promise<T> {
     if (!this.tokens) {
+      console.error('[GoogleCalendar] API request failed: Tokens not set')
       throw new Error('Tokens not set. Call setTokens() first.')
     }
 
-    const response = await fetch(`${GOOGLE_CALENDAR_API}${endpoint}`, {
+    const url = `${GOOGLE_CALENDAR_API}${endpoint}`
+    console.log('[GoogleCalendar] API request:', {
+      method: options.method || 'GET',
+      endpoint,
+    })
+
+    const response = await fetch(url, {
       ...options,
       headers: {
         Authorization: `Bearer ${this.tokens.accessToken}`,
@@ -150,6 +157,12 @@ export class GoogleCalendarProvider implements CalendarProvider {
 
     if (!response.ok) {
       const error = await response.text()
+      console.error('[GoogleCalendar] API error:', {
+        status: response.status,
+        statusText: response.statusText,
+        error,
+        endpoint,
+      })
       throw new Error(`Google Calendar API error: ${error}`)
     }
 
@@ -219,9 +232,23 @@ export class GoogleCalendarProvider implements CalendarProvider {
     calendarId: string,
     event: EventInput
   ): Promise<CalendarEvent> {
+    console.log('[GoogleCalendar] createEvent called:', {
+      calendarId,
+      summary: event.summary,
+      attendeeEmail: event.attendeeEmail || 'NO ATTENDEE - NO INVITE WILL BE SENT',
+      addGoogleMeet: event.addGoogleMeet,
+      timeZone: event.timeZone,
+      start: event.start.toISOString(),
+      end: event.end.toISOString(),
+    })
+
     const attendees = event.attendeeEmail
       ? [{ email: event.attendeeEmail, displayName: event.attendeeName }]
       : undefined
+
+    if (!attendees) {
+      console.warn('[GoogleCalendar] WARNING: No attendee email provided - calendar invite will NOT be sent to contact')
+    }
 
     // Use provided timezone or default to UTC
     const timeZone = event.timeZone || 'UTC'
@@ -231,6 +258,12 @@ export class GoogleCalendarProvider implements CalendarProvider {
     if (event.addGoogleMeet) {
       queryParams.set('conferenceDataVersion', '1')
     }
+
+    console.log('[GoogleCalendar] API request params:', {
+      sendUpdates: 'all',
+      conferenceDataVersion: event.addGoogleMeet ? '1' : 'none',
+      hasAttendees: !!attendees,
+    })
 
     // Build event body
     const eventBody: Record<string, unknown> = {
@@ -261,9 +294,16 @@ export class GoogleCalendarProvider implements CalendarProvider {
       start: { dateTime: string }
       end: { dateTime: string }
       htmlLink?: string
+      conferenceData?: { entryPoints?: Array<{ uri: string }> }
     }>(`/calendars/${encodeURIComponent(calendarId)}/events?${queryParams.toString()}`, {
       method: 'POST',
       body: JSON.stringify(eventBody),
+    })
+
+    console.log('[GoogleCalendar] Event created successfully:', {
+      eventId: data.id,
+      htmlLink: data.htmlLink,
+      hasMeetLink: !!data.conferenceData?.entryPoints?.length,
     })
 
     return {
