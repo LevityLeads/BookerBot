@@ -213,7 +213,62 @@ class BookingHandler {
         }
       }
 
+      // Check if user mentioned a day without a specific time
+      const dayOnly = this.parseDayOnly(message)
+      if (dayOnly) {
+        const slotsOnDay = this.filterSlotsByDay(dayOnly, bookingState.offeredSlots)
+        if (slotsOnDay.length > 0) {
+          // Ask them to pick a specific time on that day
+          const dayOfferMessage = this.buildDayTimesMessage(
+            contact.first_name || 'there',
+            dayOnly,
+            slotsOnDay
+          )
+          return {
+            message: dayOfferMessage,
+            bookingState: {
+              ...bookingState,
+              // If only one slot on that day, set it as lastOfferedSlot for "yes" response
+              lastOfferedSlot: slotsOnDay.length === 1 ? slotsOnDay[0] : null,
+            },
+            appointmentCreated: false,
+            continueWithAI: false,
+          }
+        } else {
+          // No slots on that day - offer alternatives
+          const noSlotsMessage = this.buildNoSlotsOnDayMessage(
+            contact.first_name || 'there',
+            dayOnly,
+            bookingState.offeredSlots
+          )
+          return {
+            message: noSlotsMessage,
+            bookingState,
+            appointmentCreated: false,
+            continueWithAI: false,
+          }
+        }
+      }
+
+      // Check for affirmative response without lastOfferedSlot
+      const isAffirmative = this.isAffirmativeResponse(message)
+      if (isAffirmative && bookingState.offeredSlots.length > 0) {
+        // They said "yes" or "sounds good" but we don't know which slot
+        // Ask them to clarify
+        const clarifyMessage = this.buildClarifySlotMessage(
+          contact.first_name || 'there',
+          bookingState.offeredSlots
+        )
+        return {
+          message: clarifyMessage,
+          bookingState,
+          appointmentCreated: false,
+          continueWithAI: false,
+        }
+      }
+
       // Couldn't parse selection and no clear alternative - let AI continue
+      // BUT flag that we're in booking mode so AI doesn't confirm a booking
       return {
         message: '',
         bookingState,
@@ -340,6 +395,143 @@ class BookingHandler {
     }
 
     return closest
+  }
+
+  /**
+   * Parse if user only mentioned a day without a specific time
+   */
+  private parseDayOnly(message: string): string | null {
+    const normalized = message.toLowerCase()
+    const dayNames = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+
+    // Check for day mention
+    const mentionedDay = dayNames.find(day => normalized.includes(day))
+    if (!mentionedDay) {
+      // Check for "tomorrow" or "today"
+      if (normalized.includes('tomorrow')) return 'tomorrow'
+      if (normalized.includes('today')) return 'today'
+      return null
+    }
+
+    // Check if they also included a specific time - if so, this isn't day-only
+    const hasTime = /\b\d{1,2}(?::\d{2})?\s*(?:am|pm)\b/i.test(normalized) ||
+                   /\bat\s+\d{1,2}\b/i.test(normalized)
+
+    if (hasTime) {
+      return null // They specified a time, not day-only
+    }
+
+    return mentionedDay
+  }
+
+  /**
+   * Filter slots to a specific day
+   */
+  private filterSlotsByDay(day: string, slots: TimeSlot[]): TimeSlot[] {
+    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+
+    if (day === 'tomorrow') {
+      const tomorrow = new Date()
+      tomorrow.setDate(tomorrow.getDate() + 1)
+      return slots.filter(slot =>
+        slot.start.toDateString() === tomorrow.toDateString()
+      )
+    }
+
+    if (day === 'today') {
+      const today = new Date()
+      return slots.filter(slot =>
+        slot.start.toDateString() === today.toDateString()
+      )
+    }
+
+    return slots.filter(slot => {
+      const slotDay = dayNames[slot.start.getDay()]
+      return slotDay === day
+    })
+  }
+
+  /**
+   * Build message asking for specific time on a day
+   */
+  private buildDayTimesMessage(firstName: string, day: string, slots: TimeSlot[]): string {
+    const dayCapitalized = day.charAt(0).toUpperCase() + day.slice(1)
+
+    const times = slots.map(s => {
+      const hour = s.start.getHours()
+      const minute = s.start.getMinutes()
+      if (minute === 0) {
+        return hour >= 12 ? `${hour === 12 ? 12 : hour - 12}pm` : `${hour}am`
+      }
+      const displayHour = hour >= 12 ? (hour === 12 ? 12 : hour - 12) : hour
+      const meridiem = hour >= 12 ? 'pm' : 'am'
+      return `${displayHour}:${minute.toString().padStart(2, '0')}${meridiem}`
+    })
+
+    if (times.length === 1) {
+      return `${dayCapitalized} works - I've got ${times[0]}. Does that time work for you?`
+    }
+
+    const timeList = times.slice(0, -1).join(', ') + ' or ' + times[times.length - 1]
+
+    const templates = [
+      `${dayCapitalized} works - what time? I've got ${timeList}.`,
+      `I can do ${dayCapitalized} at ${timeList}. Which works better?`,
+      `${dayCapitalized} it is. I have ${timeList} open - which one?`,
+    ]
+
+    return templates[Math.floor(Math.random() * templates.length)]
+  }
+
+  /**
+   * Build message when requested day has no slots
+   */
+  private buildNoSlotsOnDayMessage(firstName: string, day: string, slots: TimeSlot[]): string {
+    const dayCapitalized = day.charAt(0).toUpperCase() + day.slice(1)
+
+    // Get unique days from available slots
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+    const availableDays = Array.from(new Set(slots.map(s => dayNames[s.start.getDay()])))
+
+    if (availableDays.length === 1) {
+      return `${dayCapitalized} is fully booked - I've only got ${availableDays[0]} open. Would that work?`
+    }
+
+    const dayList = availableDays.slice(0, 3).join(' or ')
+    return `${dayCapitalized} is packed. How about ${dayList} instead?`
+  }
+
+  /**
+   * Check if message is an affirmative response
+   */
+  private isAffirmativeResponse(message: string): boolean {
+    const normalized = message.toLowerCase().trim()
+    const affirmativePatterns = [
+      /^(yes|yeah|yep|yup|sure|ok|okay|sounds good|that works|perfect|great|fine)$/i,
+      /^(yes|yeah|yep|yup|sure|ok|okay)[,!.]?\s*(that|it)?\s*(works|sounds good)?/i,
+      /that\s*(works|sounds good|'?s good|'?s fine|'?s perfect)/i,
+      /^(sounds?|looks?)\s+(good|great|fine|perfect)/i,
+      /^(let'?s|i'?ll)\s+(do|take|book)\s+(it|that|this)/i,
+    ]
+
+    return affirmativePatterns.some(pattern => pattern.test(normalized))
+  }
+
+  /**
+   * Build message asking to clarify which slot
+   */
+  private buildClarifySlotMessage(firstName: string, slots: TimeSlot[]): string {
+    // Get a sample of available times
+    const sampleSlots = slots.slice(0, 3)
+    const times = sampleSlots.map(s => s.formatted.split(' at ')[1] || s.formatted)
+
+    const templates = [
+      `Which time works for you? I've got ${times.join(', ')} available.`,
+      `Just to confirm - which slot? ${times.join(', ')}?`,
+      `Which one? I have ${times.join(', ')}.`,
+    ]
+
+    return templates[Math.floor(Math.random() * templates.length)]
   }
 
   /**
