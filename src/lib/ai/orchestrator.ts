@@ -114,9 +114,40 @@ export class ConversationOrchestrator {
       qualificationStatus: qualificationAssessment.status,
     })
 
-    // If booking flow is active, try to handle time selection
+    // Handle reschedule requests for booked contacts
+    if (intent.intent === 'reschedule' && typedContact.status === 'booked') {
+      console.log('[Booking Flow] Reschedule request detected for booked contact')
+      const hasCalendar = await bookingHandler.isCalendarConnected(
+        typedContact.workflows.clients.id
+      )
+
+      if (hasCalendar) {
+        const rescheduleResult = await bookingHandler.startReschedule(
+          typedContact,
+          bookingState
+        )
+
+        console.log('[Booking Flow] Reschedule result:', {
+          continueWithAI: rescheduleResult.continueWithAI,
+          isRescheduling: rescheduleResult.bookingState.isRescheduling,
+        })
+
+        if (!rescheduleResult.continueWithAI) {
+          return this.saveBookingResponse(
+            typedContact,
+            context,
+            rescheduleResult,
+            input.message
+          )
+        }
+      }
+    }
+
+    // If booking flow is active (including reschedule), try to handle time selection
     if (bookingState.isActive && bookingState.offeredSlots.length > 0) {
-      console.log('[Booking Flow] Active booking - handling time selection')
+      console.log('[Booking Flow] Active booking - handling time selection', {
+        isRescheduling: bookingState.isRescheduling,
+      })
       const bookingResult = await bookingHandler.handleTimeSelection(
         typedContact,
         input.message,
@@ -125,6 +156,7 @@ export class ConversationOrchestrator {
 
       console.log('[Booking Flow] Time selection result:', {
         appointmentCreated: bookingResult.appointmentCreated,
+        appointmentRescheduled: bookingResult.appointmentRescheduled,
         appointmentId: bookingResult.appointmentId,
         continueWithAI: bookingResult.continueWithAI,
       })
@@ -443,6 +475,7 @@ export class ConversationOrchestrator {
       message: string
       bookingState: BookingState
       appointmentCreated: boolean
+      appointmentRescheduled?: boolean
       appointmentId?: string
     },
     userMessage: string
@@ -465,9 +498,17 @@ export class ConversationOrchestrator {
       ai_cost: 0
     })
 
+    // Determine intent based on what happened
+    const wasCompleted = bookingResult.appointmentCreated || bookingResult.appointmentRescheduled
+    const intentType = wasCompleted
+      ? 'confirmation'
+      : bookingResult.bookingState.isRescheduling
+        ? 'reschedule'
+        : 'booking_interest'
+
     // Update context with booking state
     const updatedContext = contextManager.update(context, {
-      intent: bookingResult.appointmentCreated ? 'confirmation' : 'booking_interest',
+      intent: intentType,
       userMessage,
       aiResponse: bookingResult.message
     })
@@ -485,6 +526,7 @@ export class ConversationOrchestrator {
       last_message_at: new Date().toISOString()
     }
 
+    // Contact stays booked after reschedule, becomes booked after new booking
     if (bookingResult.appointmentCreated) {
       updateData.status = 'booked'
     }
@@ -495,10 +537,18 @@ export class ConversationOrchestrator {
       .update(updateData)
       .eq('id', contact.id)
 
+    // Determine status update
+    let statusUpdate: { newStatus: Contact['status']; reason: string } | undefined
+    if (bookingResult.appointmentCreated) {
+      statusUpdate = { newStatus: 'booked', reason: 'Appointment booked' }
+    } else if (bookingResult.appointmentRescheduled) {
+      statusUpdate = { newStatus: 'booked', reason: 'Appointment rescheduled' }
+    }
+
     return {
       response: bookingResult.message,
       intent: {
-        intent: bookingResult.appointmentCreated ? 'confirmation' : 'booking_interest',
+        intent: intentType,
         confidence: 1.0,
         entities: bookingResult.appointmentId
           ? { appointmentId: bookingResult.appointmentId }
@@ -506,9 +556,7 @@ export class ConversationOrchestrator {
         requiresEscalation: false
       },
       contextUpdate: updatedContext,
-      statusUpdate: bookingResult.appointmentCreated
-        ? { newStatus: 'booked', reason: 'Appointment booked' }
-        : undefined,
+      statusUpdate,
       tokensUsed: { input: 0, output: 0, total: 0, model: 'booking-handler' },
       shouldEscalate: false
     }

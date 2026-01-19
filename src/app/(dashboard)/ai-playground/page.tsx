@@ -180,6 +180,7 @@ export default function AIPlaygroundPage() {
   const getIntentColor = (intent: Intent): string => {
     const colors: Record<Intent, string> = {
       booking_interest: 'bg-green-500/20 text-green-400',
+      reschedule: 'bg-amber-500/20 text-amber-400',
       positive_response: 'bg-green-500/20 text-green-400',
       question: 'bg-blue-500/20 text-blue-400',
       objection: 'bg-yellow-500/20 text-yellow-400',
