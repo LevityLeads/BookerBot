@@ -29,6 +29,8 @@ export interface BookingState {
   selectedSlot: TimeSlot | null
   /** Number of times we've offered slots */
   offerAttempts: number
+  /** Last specific slot offered as an alternative (for handling "yeah that works") */
+  lastOfferedSlot: TimeSlot | null
 }
 
 export interface BookingFlowResult {
@@ -122,6 +124,7 @@ class BookingHandler {
           slotsOfferedAt: new Date().toISOString(),
           selectedSlot: null,
           offerAttempts: bookingState.offerAttempts + 1,
+          lastOfferedSlot: null, // Clear when offering new set of slots
         },
         appointmentCreated: false,
         continueWithAI: false,
@@ -154,10 +157,42 @@ class BookingHandler {
       }
     }
 
-    const selectedSlot = parseTimeSelection(message, bookingState.offeredSlots)
+    // Pass lastOfferedSlot to handle affirmative responses
+    const selectedSlot = parseTimeSelection(
+      message,
+      bookingState.offeredSlots,
+      bookingState.lastOfferedSlot || undefined
+    )
 
     if (!selectedSlot) {
-      // Couldn't parse selection - let AI continue
+      // Check if user requested a specific time that we don't have
+      const requestedTime = this.parseRequestedTime(message)
+
+      if (requestedTime) {
+        // Find the closest available slot to what they requested
+        const closestSlot = this.findClosestSlot(requestedTime, bookingState.offeredSlots)
+
+        if (closestSlot) {
+          // Offer the closest alternative and track it
+          const alternativeMessage = this.buildAlternativeOfferMessage(
+            contact.first_name || 'there',
+            requestedTime,
+            closestSlot
+          )
+
+          return {
+            message: alternativeMessage,
+            bookingState: {
+              ...bookingState,
+              lastOfferedSlot: closestSlot, // Track for "yeah that works" responses
+            },
+            appointmentCreated: false,
+            continueWithAI: false,
+          }
+        }
+      }
+
+      // Couldn't parse selection and no clear alternative - let AI continue
       return {
         message: '',
         bookingState,
@@ -180,6 +215,7 @@ class BookingHandler {
           ...bookingState,
           selectedSlot,
           isActive: false, // Flow complete
+          lastOfferedSlot: null,
         },
         appointmentCreated: true,
         appointmentId: appointment.id,
@@ -194,6 +230,126 @@ class BookingHandler {
         continueWithAI: false,
       }
     }
+  }
+
+  /**
+   * Parse the time the user is requesting (even if not available)
+   */
+  private parseRequestedTime(message: string): { hour: number; minute: number; day?: string } | null {
+    const normalized = message.toLowerCase()
+
+    // Extract time patterns
+    const timePatterns = [
+      /\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i,
+      /\bat\s+(\d{1,2})(?::(\d{2}))?(?:\s*(am|pm))?\b/i,
+    ]
+
+    let hour: number | null = null
+    let minute = 0
+
+    for (const pattern of timePatterns) {
+      const match = normalized.match(pattern)
+      if (match) {
+        hour = parseInt(match[1], 10)
+        minute = match[2] ? parseInt(match[2], 10) : 0
+        const meridiem = match[3]?.toLowerCase()
+
+        if (meridiem === 'pm' && hour < 12) {
+          hour += 12
+        } else if (meridiem === 'am' && hour === 12) {
+          hour = 0
+        }
+        break
+      }
+    }
+
+    if (hour === null) {
+      return null
+    }
+
+    // Extract day if mentioned
+    const dayNames = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+    const day = dayNames.find(d => normalized.includes(d))
+
+    return { hour, minute, day }
+  }
+
+  /**
+   * Find the closest available slot to a requested time
+   */
+  private findClosestSlot(
+    requested: { hour: number; minute: number; day?: string },
+    slots: TimeSlot[]
+  ): TimeSlot | null {
+    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+
+    // Filter by day if specified
+    let candidates = slots
+    if (requested.day) {
+      candidates = slots.filter(slot => {
+        const slotDay = dayNames[slot.start.getDay()]
+        return slotDay === requested.day
+      })
+    }
+
+    if (candidates.length === 0) {
+      return null
+    }
+
+    // Find slot closest in time
+    const requestedMinutes = requested.hour * 60 + requested.minute
+
+    let closest: TimeSlot | null = null
+    let closestDiff = Infinity
+
+    for (const slot of candidates) {
+      const slotMinutes = slot.start.getHours() * 60 + slot.start.getMinutes()
+      const diff = Math.abs(slotMinutes - requestedMinutes)
+
+      if (diff < closestDiff) {
+        closestDiff = diff
+        closest = slot
+      }
+    }
+
+    return closest
+  }
+
+  /**
+   * Build a message offering an alternative when requested time isn't available
+   */
+  private buildAlternativeOfferMessage(
+    firstName: string,
+    requested: { hour: number; minute: number; day?: string },
+    alternative: TimeSlot
+  ): string {
+    const requestedTime = this.formatSimpleTime(requested.hour, requested.minute)
+
+    // Get just the time part from the alternative
+    const altHour = alternative.start.getHours()
+    const altMinute = alternative.start.getMinutes()
+    const altTime = this.formatSimpleTime(altHour, altMinute)
+
+    const templates = [
+      `${requestedTime} isn't available - closest I've got is ${altTime}. Would that work?`,
+      `Unfortunately ${requestedTime} is taken. How about ${altTime} instead?`,
+      `I don't have ${requestedTime} open, but ${altTime} works - sound good?`,
+    ]
+
+    return templates[Math.floor(Math.random() * templates.length)]
+  }
+
+  /**
+   * Format hour/minute as simple time string
+   */
+  private formatSimpleTime(hour: number, minute: number): string {
+    const displayHour = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour
+    const meridiem = hour >= 12 ? 'pm' : 'am'
+
+    if (minute === 0) {
+      return `${displayHour}${meridiem}`
+    }
+    return `${displayHour}:${minute.toString().padStart(2, '0')}${meridiem}`
   }
 
   /**
@@ -212,15 +368,16 @@ class BookingHandler {
 
     if (connection && connection.connection.calendar_id) {
       try {
+        const contactName = `${contact.first_name || ''} ${contact.last_name || ''}`.trim() || 'Contact'
         const event = await connection.provider.createEvent(
           connection.connection.calendar_id,
           {
-            summary: `${contact.workflows.name} - ${contact.first_name || 'Contact'} ${contact.last_name || ''}`.trim(),
-            description: `Booked via BookerBot\n\nContact: ${contact.first_name || ''} ${contact.last_name || ''}\nPhone: ${contact.phone || 'N/A'}\nEmail: ${contact.email || 'N/A'}`,
+            summary: `Call with ${client.name}`,
+            description: `Booked via BookerBot\n\nContact: ${contactName}\nPhone: ${contact.phone || 'N/A'}\nEmail: ${contact.email || 'N/A'}`,
             start: slot.start,
             end: slot.end,
             attendeeEmail: contact.email || undefined,
-            attendeeName: `${contact.first_name || ''} ${contact.last_name || ''}`.trim() || undefined,
+            attendeeName: contactName || undefined,
           }
         )
         calendarEventId = event.id
@@ -266,12 +423,33 @@ class BookingHandler {
 
   /**
    * Build a natural message offering time slots
+   * Selects 3-4 diverse options across different days like a human would
    */
   private buildSlotOfferMessage(
     firstName: string,
     slots: TimeSlot[]
   ): string {
-    // Group slots by day for a cleaner message
+    // Select diverse slots across different days (aim for 3-4 options)
+    const selectedSlots = this.selectDiverseSlots(slots, 4)
+
+    if (selectedSlots.length === 0) {
+      return `${firstName}, let me check on some times and get back to you.`
+    }
+
+    // Build a conversational message
+    return this.formatSlotsNaturally(firstName, selectedSlots)
+  }
+
+  /**
+   * Select diverse slots across different days
+   * Picks times from different days and varies morning/afternoon
+   */
+  private selectDiverseSlots(slots: TimeSlot[], maxSlots: number): TimeSlot[] {
+    if (slots.length <= maxSlots) {
+      return slots
+    }
+
+    // Group by day
     const slotsByDay = new Map<string, TimeSlot[]>()
     for (const slot of slots) {
       const dayKey = slot.start.toDateString()
@@ -281,31 +459,98 @@ class BookingHandler {
       slotsByDay.get(dayKey)!.push(slot)
     }
 
-    // Vary the opening to sound more natural
-    const openers = [
-      `${firstName}, here's what I've got available:`,
-      `Let me check the calendar... Here's what works:`,
-      `${firstName}, I've got these times open:`,
-    ]
-    const opener = openers[Math.floor(Math.random() * openers.length)]
+    const selected: TimeSlot[] = []
+    const days = Array.from(slotsByDay.keys())
 
-    // Build message
-    const lines: string[] = []
-    lines.push(opener)
-    lines.push('')
+    // Strategy: Pick 1-2 slots from each day, preferring variety
+    // Try to get morning and afternoon options
+    for (const day of days) {
+      if (selected.length >= maxSlots) break
 
-    let slotNum = 1
+      const daySlots = slotsByDay.get(day)!
+
+      // Separate into morning (before 12pm) and afternoon
+      const morning = daySlots.filter(s => s.start.getHours() < 12)
+      const afternoon = daySlots.filter(s => s.start.getHours() >= 12)
+
+      // Pick one from each period if available, otherwise just pick one
+      if (morning.length > 0 && selected.length < maxSlots) {
+        // Pick a mid-morning slot if multiple options
+        const midIdx = Math.floor(morning.length / 2)
+        selected.push(morning[midIdx])
+      }
+      if (afternoon.length > 0 && selected.length < maxSlots) {
+        // Pick an early afternoon slot if multiple options
+        const midIdx = Math.floor(afternoon.length / 2)
+        selected.push(afternoon[midIdx])
+      }
+      if (morning.length === 0 && afternoon.length === 0 && daySlots.length > 0) {
+        selected.push(daySlots[0])
+      }
+    }
+
+    return selected
+  }
+
+  /**
+   * Format slots in a conversational way like a human would
+   */
+  private formatSlotsNaturally(firstName: string, slots: TimeSlot[]): string {
+    // Group by day for natural phrasing
+    const slotsByDay = new Map<string, TimeSlot[]>()
+    for (const slot of slots) {
+      const dayKey = slot.start.toDateString()
+      if (!slotsByDay.has(dayKey)) {
+        slotsByDay.set(dayKey, [])
+      }
+      slotsByDay.get(dayKey)!.push(slot)
+    }
+
+    // Build day phrases like "Monday at 10 or 2"
+    const dayPhrases: string[] = []
+
     Array.from(slotsByDay.values()).forEach((daySlots) => {
-      for (const slot of daySlots) {
-        lines.push(`${slotNum}. ${slot.formatted}`)
-        slotNum++
+      // Get day name from first slot
+      const dayName = new Intl.DateTimeFormat('en-GB', { weekday: 'long' }).format(daySlots[0].start)
+
+      // Format times simply
+      const times = daySlots.map(s => {
+        const hour = s.start.getHours()
+        const minute = s.start.getMinutes()
+        if (minute === 0) {
+          return hour >= 12 ? `${hour === 12 ? 12 : hour - 12}pm` : `${hour}am`
+        }
+        const displayHour = hour >= 12 ? (hour === 12 ? 12 : hour - 12) : hour
+        const meridiem = hour >= 12 ? 'pm' : 'am'
+        return `${displayHour}:${minute.toString().padStart(2, '0')}${meridiem}`
+      })
+
+      if (times.length === 1) {
+        dayPhrases.push(`${dayName} at ${times[0]}`)
+      } else {
+        dayPhrases.push(`${dayName} at ${times.join(' or ')}`)
       }
     })
 
-    lines.push('')
-    lines.push('Which works for you?')
+    // Combine into natural sentence
+    let timeOptions: string
+    if (dayPhrases.length === 1) {
+      timeOptions = dayPhrases[0]
+    } else if (dayPhrases.length === 2) {
+      timeOptions = `${dayPhrases[0]} or ${dayPhrases[1]}`
+    } else {
+      const last = dayPhrases.pop()
+      timeOptions = `${dayPhrases.join(', ')}, or ${last}`
+    }
 
-    return lines.join('\n')
+    // Vary the phrasing
+    const templates = [
+      `${firstName}, does ${timeOptions} work for you?`,
+      `How about ${timeOptions}? Any of those work?`,
+      `I've got ${timeOptions} open - any of those suit you?`,
+    ]
+
+    return templates[Math.floor(Math.random() * templates.length)]
   }
 
   /**
@@ -330,6 +575,7 @@ class BookingHandler {
       slotsOfferedAt: null,
       selectedSlot: null,
       offerAttempts: 0,
+      lastOfferedSlot: null,
     }
   }
 
@@ -353,6 +599,13 @@ class BookingHandler {
           }
         : null,
       offerAttempts: state.offerAttempts,
+      lastOfferedSlot: state.lastOfferedSlot
+        ? {
+            start: state.lastOfferedSlot.start.toISOString(),
+            end: state.lastOfferedSlot.end.toISOString(),
+            formatted: state.lastOfferedSlot.formatted,
+          }
+        : null,
     }
   }
 
@@ -380,6 +633,9 @@ class BookingHandler {
         ? parseSlot(data.selectedSlot as { start: string; end: string; formatted: string })
         : null,
       offerAttempts: (data.offerAttempts as number) || 0,
+      lastOfferedSlot: data.lastOfferedSlot
+        ? parseSlot(data.lastOfferedSlot as { start: string; end: string; formatted: string })
+        : null,
     }
   }
 }

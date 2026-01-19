@@ -189,31 +189,63 @@ export function formatSlotsForConversation(slots: TimeSlot[]): string {
  */
 export function parseTimeSelection(
   input: string,
-  availableSlots: TimeSlot[]
+  availableSlots: TimeSlot[],
+  lastOfferedSlot?: TimeSlot
 ): TimeSlot | null {
   const normalizedInput = input.toLowerCase().trim()
 
-  // Try to parse as a numbered selection first (most reliable)
-  // e.g., "option 1", "the first one", "#2", "1", "number 3"
-  const numberMatch = normalizedInput.match(/(?:option|number|#)?\s*(\d+)|(?:the\s+)?(first|second|third|fourth|fifth|sixth)/i)
-  if (numberMatch) {
-    let index: number
-    if (numberMatch[2]) {
-      const ordinals: Record<string, number> = {
-        first: 0,
-        second: 1,
-        third: 2,
-        fourth: 3,
-        fifth: 4,
-        sixth: 5,
-      }
-      index = ordinals[numberMatch[2].toLowerCase()] ?? -1
-    } else {
-      index = parseInt(numberMatch[1], 10) - 1
-    }
+  // Check for affirmative responses first (e.g., "yeah that works", "yes", "sure")
+  // These confirm the last offered slot
+  const affirmativePatterns = [
+    /^(yes|yeah|yep|yup|sure|ok|okay|sounds good|that works|perfect|great|fine|let'?s do it|book it|confirmed?)$/i,
+    /^(yes|yeah|yep|yup|sure|ok|okay)[,!.]?\s*(that|it)?\s*(works|sounds good)?/i,
+    /that\s*(works|sounds good|'?s good|'?s fine|'?s perfect)/i,
+    /^(sounds?|looks?)\s+(good|great|fine|perfect)/i,
+    /^(let'?s|i'?ll)\s+(do|take|book)\s+(it|that|this)/i,
+  ]
 
-    if (index >= 0 && index < availableSlots.length) {
-      return availableSlots[index]
+  for (const pattern of affirmativePatterns) {
+    if (pattern.test(normalizedInput)) {
+      // User is confirming - use the last offered slot if available, otherwise first available
+      if (lastOfferedSlot) {
+        return lastOfferedSlot
+      }
+      // If only one slot available, book it
+      if (availableSlots.length === 1) {
+        return availableSlots[0]
+      }
+      // Multiple slots but no specific last offer - can't determine which one
+      return null
+    }
+  }
+
+  // Try to parse as a numbered selection (most reliable)
+  // Only match explicit slot references like "option 1", "#2", "the first one"
+  // or standalone numbers at the start/end (not numbers within dates)
+  const explicitNumberPatterns = [
+    /^(?:option|number|#|slot)\s*(\d)$/i,  // "option 1", "#2", "slot 3"
+    /^(\d)$/,  // Just a single digit
+    /^(?:the\s+)?(first|second|third|fourth|fifth|sixth)(?:\s+one)?$/i,  // "the first one"
+  ]
+
+  for (const pattern of explicitNumberPatterns) {
+    const match = normalizedInput.match(pattern)
+    if (match) {
+      let index: number
+      if (match[1] && /^\d$/.test(match[1])) {
+        index = parseInt(match[1], 10) - 1
+      } else if (match[1]) {
+        const ordinals: Record<string, number> = {
+          first: 0, second: 1, third: 2, fourth: 3, fifth: 4, sixth: 5,
+        }
+        index = ordinals[match[1].toLowerCase()] ?? -1
+      } else {
+        continue
+      }
+
+      if (index >= 0 && index < availableSlots.length) {
+        return availableSlots[index]
+      }
     }
   }
 
@@ -230,10 +262,11 @@ export function parseTimeSelection(
   }
 
   // Parse time from input - handle various formats
-  // "2pm", "2:00pm", "2:00 pm", "14:00", "2 pm", "at 2", "12"
+  // "2pm", "2:00pm", "2:00 pm", "14:00", "2 pm", "at 2"
+  // Use word boundaries to avoid matching numbers in dates like "19th"
   const timePatterns = [
-    /(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i,  // 2pm, 2:00pm, 2:00 pm
-    /at\s+(\d{1,2})(?::(\d{2}))?(?:\s*(am|pm))?/i,  // at 2, at 2pm
+    /\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i,  // 2pm, 2:00pm, 2:00 pm
+    /\bat\s+(\d{1,2})(?::(\d{2}))?(?:\s*(am|pm))?\b/i,  // at 2, at 2pm
   ]
 
   let inputHour: number | null = null
@@ -274,16 +307,15 @@ export function parseTimeSelection(
 
       // Check if time matches
       const exactTimeMatch = slotHour === inputHour && slotMinute === inputMinute
-      const hourMatch = slotHour === inputHour
+      const hourMatch = slotHour === inputHour && inputMinute === 0
 
       // Also check for ambiguous times without am/pm (e.g., "at 2" could be 2am or 2pm)
-      const ambiguousMatch = !hasMeridiem && (
+      const ambiguousMatch = !hasMeridiem && inputMinute === 0 && (
         slotHour === inputHour ||
-        slotHour === (inputHour + 12) % 24 ||
-        slotHour === (inputHour - 12 + 24) % 24
+        slotHour === (inputHour + 12) % 24
       )
 
-      if (exactTimeMatch || (hourMatch && inputMinute === 0) || ambiguousMatch) {
+      if (exactTimeMatch || hourMatch || ambiguousMatch) {
         // If day is also specified, it must match
         if (inputDay) {
           const normalizedSlot = slot.formatted.toLowerCase()
