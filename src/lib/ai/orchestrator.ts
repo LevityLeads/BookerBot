@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { generateResponse, estimateCost } from './client'
+import { generateResponse, generateResponseWithTools, estimateCost } from './client'
 import { contextManager } from './context-manager'
 import { promptBuilder } from './prompt-builder'
 import { intentDetector } from './intent-detector'
@@ -144,31 +144,93 @@ export class ConversationOrchestrator {
       }
     }
 
-    // If booking flow is active (including reschedule), try to handle time selection
+    // If booking flow is active, use tool-based AI response for slot selection
     if (bookingState.isActive && bookingState.offeredSlots.length > 0) {
-      console.log('[Booking Flow] Active booking - handling time selection', {
+      console.log('[Booking Flow] Active booking - using tool-based flow', {
+        isRescheduling: bookingState.isRescheduling,
+        offeredSlotsCount: bookingState.offeredSlots.length,
+      })
+
+      // Build prompt config and use tool-based generation
+      const promptConfig = promptBuilder.build({
+        knowledge,
+        contact: typedContact,
+        context,
+        messageHistory,
+        currentMessage: input.message,
+        channel: typedContact.workflows.channel,
+        appointmentDuration: typedContact.workflows.appointment_duration_minutes,
+        workflowInstructions: typedContact.workflows.instructions,
+        offeredSlots: bookingState.offeredSlots,
+        timezone: typedContact.workflows.clients.timezone || undefined,
+        bookingFlowActive: true,
+      })
+
+      const toolResponse = await generateResponseWithTools({
+        ...promptConfig,
+        offeredSlots: bookingState.offeredSlots,
+        lastOfferedSlot: bookingState.lastOfferedSlot,
         isRescheduling: bookingState.isRescheduling,
       })
-      const bookingResult = await bookingHandler.handleTimeSelection(
-        typedContact,
-        input.message,
-        bookingState
-      )
 
-      console.log('[Booking Flow] Time selection result:', {
-        appointmentCreated: bookingResult.appointmentCreated,
-        appointmentRescheduled: bookingResult.appointmentRescheduled,
-        appointmentId: bookingResult.appointmentId,
-        continueWithAI: bookingResult.continueWithAI,
+      console.log('[Booking Flow] Tool response:', {
+        hasToolCall: !!toolResponse.toolCall,
+        toolName: toolResponse.toolCall?.name,
+        hasText: !!toolResponse.text,
       })
 
-      if (!bookingResult.continueWithAI) {
-        // Booking was handled - save response and return
-        return this.saveBookingResponse(
+      // If Claude used a tool, execute it
+      if (toolResponse.toolCall) {
+        const bookingResult = await bookingHandler.handleToolCall(
+          typedContact,
+          toolResponse.toolCall,
+          bookingState,
+          toolResponse.text
+        )
+
+        console.log('[Booking Flow] Tool execution result:', {
+          appointmentCreated: bookingResult.appointmentCreated,
+          appointmentRescheduled: bookingResult.appointmentRescheduled,
+          appointmentId: bookingResult.appointmentId,
+        })
+
+        // Save response and return
+        return this.saveBookingResponseWithUsage(
           typedContact,
           context,
           bookingResult,
-          input.message
+          input.message,
+          toolResponse.usage
+        )
+      }
+
+      // No tool call - Claude responded with just text (e.g., user asked a question)
+      // Save the response and continue
+      if (toolResponse.text) {
+        const updatedContext = contextManager.update(context, {
+          intent: intent.intent,
+          userMessage: input.message,
+          aiResponse: toolResponse.text,
+          qualificationUpdate: qualificationAssessment,
+          extractedInfoUpdate: qualificationAssessment.extractedInfo
+        })
+
+        const statusUpdate = this.determineStatusUpdate(
+          typedContact.status,
+          intent.intent,
+          qualificationAssessment.status
+        )
+
+        // Save and return
+        return this.saveAndReturnResponse(
+          typedContact,
+          updatedContext,
+          bookingState,
+          toolResponse.text,
+          toolResponse.usage,
+          input.message,
+          intent,
+          statusUpdate
         )
       }
     }
@@ -565,6 +627,174 @@ export class ConversationOrchestrator {
       contextUpdate: updatedContext,
       statusUpdate,
       tokensUsed: { input: 0, output: 0, total: 0, model: 'booking-handler' },
+      shouldEscalate: false
+    }
+  }
+
+  /**
+   * Save a booking flow response with token usage (for tool-based flow)
+   */
+  private async saveBookingResponseWithUsage(
+    contact: ContactWithWorkflow,
+    context: ConversationContext,
+    bookingResult: {
+      message: string
+      bookingState: BookingState
+      appointmentCreated: boolean
+      appointmentRescheduled?: boolean
+      appointmentId?: string
+    },
+    userMessage: string,
+    usage: { input: number; output: number; total: number; model: string }
+  ): Promise<ProcessMessageResult> {
+    const supabase = await createClient()
+    const aiCost = estimateCost(usage)
+
+    // Save the booking response message with proper token tracking
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any).from('messages').insert({
+      contact_id: contact.id,
+      direction: 'outbound',
+      channel: contact.workflows.channel,
+      content: bookingResult.message,
+      status: 'pending',
+      ai_generated: true,
+      tokens_used: usage.total,
+      input_tokens: usage.input,
+      output_tokens: usage.output,
+      ai_model: usage.model,
+      ai_cost: aiCost
+    })
+
+    // Determine intent based on what happened
+    const wasCompleted = bookingResult.appointmentCreated || bookingResult.appointmentRescheduled
+    const intentType = wasCompleted
+      ? 'confirmation'
+      : bookingResult.bookingState.isRescheduling
+        ? 'reschedule'
+        : 'booking_interest'
+
+    // Update context with booking state
+    const updatedContext = contextManager.update(context, {
+      intent: intentType,
+      userMessage,
+      aiResponse: bookingResult.message
+    })
+
+    // Prepare conversation context with booking state
+    const serializedContext = contextManager.serialize(updatedContext) as Record<string, unknown>
+    const contextWithBooking = {
+      ...serializedContext,
+      bookingState: bookingHandler.serializeState(bookingResult.bookingState)
+    }
+
+    // Update contact
+    const updateData: Partial<Contact> & { conversation_context: Json } = {
+      conversation_context: contextWithBooking as Json,
+      last_message_at: new Date().toISOString()
+    }
+
+    if (bookingResult.appointmentCreated) {
+      updateData.status = 'booked'
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any)
+      .from('contacts')
+      .update(updateData)
+      .eq('id', contact.id)
+
+    // Determine status update
+    let statusUpdate: { newStatus: Contact['status']; reason: string } | undefined
+    if (bookingResult.appointmentCreated) {
+      statusUpdate = { newStatus: 'booked', reason: 'Appointment booked' }
+    } else if (bookingResult.appointmentRescheduled) {
+      statusUpdate = { newStatus: 'booked', reason: 'Appointment rescheduled' }
+    }
+
+    return {
+      response: bookingResult.message,
+      intent: {
+        intent: intentType,
+        confidence: 1.0,
+        entities: bookingResult.appointmentId
+          ? { appointmentId: bookingResult.appointmentId }
+          : {},
+        requiresEscalation: false
+      },
+      contextUpdate: updatedContext,
+      statusUpdate,
+      tokensUsed: usage,
+      shouldEscalate: false
+    }
+  }
+
+  /**
+   * Save and return a response (for tool-based flow when no tool was called)
+   */
+  private async saveAndReturnResponse(
+    contact: ContactWithWorkflow,
+    updatedContext: ConversationContext,
+    bookingState: BookingState,
+    responseText: string,
+    usage: { input: number; output: number; total: number; model: string },
+    userMessage: string,
+    intent: { intent: string; confidence: number; entities: Record<string, string>; requiresEscalation: boolean },
+    statusUpdate?: { newStatus: Contact['status']; reason: string }
+  ): Promise<ProcessMessageResult> {
+    const supabase = await createClient()
+    const aiCost = estimateCost(usage)
+
+    // Save AI response to database
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any).from('messages').insert({
+      contact_id: contact.id,
+      direction: 'outbound',
+      channel: contact.workflows.channel,
+      content: responseText,
+      status: 'pending',
+      ai_generated: true,
+      tokens_used: usage.total,
+      input_tokens: usage.input,
+      output_tokens: usage.output,
+      ai_model: usage.model,
+      ai_cost: aiCost
+    })
+
+    // Prepare conversation context with booking state
+    const serializedContext = contextManager.serialize(updatedContext) as Record<string, unknown>
+    const contextWithBooking = {
+      ...serializedContext,
+      bookingState: bookingHandler.serializeState(bookingState)
+    }
+
+    // Update contact
+    const updateData: Partial<Contact> & { conversation_context: Json } = {
+      conversation_context: contextWithBooking as Json,
+      last_message_at: new Date().toISOString()
+    }
+
+    if (statusUpdate) {
+      updateData.status = statusUpdate.newStatus
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any)
+      .from('contacts')
+      .update(updateData)
+      .eq('id', contact.id)
+
+    return {
+      response: responseText,
+      intent: {
+        intent: intent.intent as ProcessMessageResult['intent']['intent'],
+        confidence: intent.confidence,
+        entities: intent.entities,
+        requiresEscalation: intent.requiresEscalation
+      },
+      contextUpdate: updatedContext,
+      statusUpdate,
+      tokensUsed: usage,
       shouldEscalate: false
     }
   }
