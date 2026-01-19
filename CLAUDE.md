@@ -22,6 +22,7 @@ This project uses specialized Claude roles for parallel development. Roles are *
 | `/role:data` | Data Architect | Database, API routes, data flows |
 | `/role:analytics` | Analytics Lead | Metrics, dashboards, monitoring |
 | `/role:qa` | QA Lead | Testing, reliability, hardening |
+| `/role:docs` | Docs & Audit Lead | CLAUDE.md, PRD, role definitions, sprint tracking |
 
 ### Utility Commands
 
@@ -29,6 +30,18 @@ This project uses specialized Claude roles for parallel development. Roles are *
 |---------|---------|
 | `/role:ship` | Verify, commit, and push to main |
 | `/role:handoff` | Create structured handoff notes |
+
+### Role Announcements (IMPORTANT)
+
+**Always announce role transitions visibly.** When a role is assigned or handed off, output:
+
+```
+───────────────────────────────────────
+🎭 ROLE: [Role Name]
+───────────────────────────────────────
+```
+
+This lets the user see which role is active at any time.
 
 ### Auto-Role Detection
 
@@ -42,8 +55,9 @@ Claude automatically selects the appropriate role based on the task:
 | Database, API routes, types, Supabase queries | **Data Architect** |
 | Metrics, dashboards, token tracking, monitoring | **Analytics Lead** |
 | Testing, error handling, edge cases, hardening | **QA Lead** |
+| Documentation, PRD, role definitions, auditing | **Docs & Audit Lead** |
 
-**Cross-cutting tasks:** When work spans multiple areas, start with the primary role, then auto-handoff to other roles as needed. Document the handoff in the commit message.
+**Cross-cutting tasks:** When work spans multiple areas, start with the primary role, then announce the handoff and continue with the next role.
 
 ### Auto-Handoff Between Roles
 
@@ -51,20 +65,27 @@ When a task requires expertise from another role:
 
 1. **Complete your portion** of the work
 2. **Commit with your role prefix** (e.g., `ai: add new intent pattern`)
-3. **Switch to the next role** automatically and continue
-4. **Commit that portion** with the new role prefix
-5. **Push everything to main** when complete
+3. **Announce the handoff** with the role banner
+4. **Continue as the new role**
+5. **Commit that portion** with the new role prefix
+6. **Push everything to main** when complete
 
 Example flow:
 ```
 Task: "Add reschedule intent and update the UI to show it"
 
-1. [AI Architect] Add reschedule intent detection
-   → Commit: "ai: add reschedule intent detection"
-2. [Auto-handoff to Frontend]
-3. [Frontend Lead] Add reschedule status badge to UI
-   → Commit: "ui: add reschedule status badge"
-4. Push all commits to main
+───────────────────────────────────────
+🎭 ROLE: AI Architect
+───────────────────────────────────────
+Working on intent detection...
+→ Commit: "ai: add reschedule intent detection"
+
+───────────────────────────────────────
+🎭 ROLE: Frontend Lead
+───────────────────────────────────────
+Adding UI for the new status...
+→ Commit: "ui: add reschedule status badge"
+→ Push all commits to main
 ```
 
 ### Git Workflow (ALWAYS MERGE TO MAIN)
