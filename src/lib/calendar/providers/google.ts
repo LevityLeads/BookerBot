@@ -226,6 +226,34 @@ export class GoogleCalendarProvider implements CalendarProvider {
     // Use provided timezone or default to UTC
     const timeZone = event.timeZone || 'UTC'
 
+    // Build query params - add conferenceDataVersion if adding Google Meet
+    const queryParams = new URLSearchParams({ sendUpdates: 'all' })
+    if (event.addGoogleMeet) {
+      queryParams.set('conferenceDataVersion', '1')
+    }
+
+    // Build event body
+    const eventBody: Record<string, unknown> = {
+      summary: event.summary,
+      description: event.description,
+      start: { dateTime: event.start.toISOString(), timeZone },
+      end: { dateTime: event.end.toISOString(), timeZone },
+      attendees,
+      reminders: {
+        useDefault: true,
+      },
+    }
+
+    // Add Google Meet conference data if requested
+    if (event.addGoogleMeet) {
+      eventBody.conferenceData = {
+        createRequest: {
+          requestId: `bookerbot-${Date.now()}`,
+          conferenceSolutionKey: { type: 'hangoutsMeet' },
+        },
+      }
+    }
+
     const data = await this.apiRequest<{
       id: string
       summary: string
@@ -233,18 +261,9 @@ export class GoogleCalendarProvider implements CalendarProvider {
       start: { dateTime: string }
       end: { dateTime: string }
       htmlLink?: string
-    }>(`/calendars/${encodeURIComponent(calendarId)}/events?sendUpdates=all`, {
+    }>(`/calendars/${encodeURIComponent(calendarId)}/events?${queryParams.toString()}`, {
       method: 'POST',
-      body: JSON.stringify({
-        summary: event.summary,
-        description: event.description,
-        start: { dateTime: event.start.toISOString(), timeZone },
-        end: { dateTime: event.end.toISOString(), timeZone },
-        attendees,
-        reminders: {
-          useDefault: true,
-        },
-      }),
+      body: JSON.stringify(eventBody),
     })
 
     return {

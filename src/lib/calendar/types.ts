@@ -37,6 +37,7 @@ export interface EventInput {
   attendeeEmail?: string
   attendeeName?: string
   timeZone?: string
+  addGoogleMeet?: boolean
 }
 
 export interface CalendarEvent {

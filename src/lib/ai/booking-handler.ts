@@ -383,12 +383,13 @@ class BookingHandler {
           connection.connection.calendar_id,
           {
             summary: `Call with ${client.name}`,
-            description: `Booked via BookerBot\n\nContact: ${contactName}\nPhone: ${contact.phone || 'N/A'}\nEmail: ${contact.email || 'N/A'}`,
+            description: `Contact: ${contactName}\nPhone: ${contact.phone || 'N/A'}\nEmail: ${contact.email || 'N/A'}`,
             start: slot.start,
             end: slot.end,
             attendeeEmail: contact.email || undefined,
             attendeeName: contactName || undefined,
             timeZone: clientTimezone,
+            addGoogleMeet: true,
           }
         )
         calendarEventId = event.id
