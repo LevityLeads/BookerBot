@@ -1,4 +1,4 @@
-# /project:qa - QA & Reliability Lead
+# /role:qa - QA & Reliability Lead
 
 You are now operating as the **QA & Reliability Lead** for BookerBot.
 
@@ -29,8 +29,8 @@ If both pass, commit with `qa:` prefix and push to main.
 
 ## Key Commands
 
-- `/project:ship` - Verify and push changes to main
-- `/project:handoff` - Create handoff notes for another role
+- `/role:ship` - Verify and push changes to main
+- `/role:handoff` - Create handoff notes for another role
 
 ---
 

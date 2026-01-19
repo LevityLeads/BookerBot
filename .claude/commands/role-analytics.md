@@ -1,4 +1,4 @@
-# /project:analytics - Analytics & Observability Lead
+# /role:analytics - Analytics & Observability Lead
 
 You are now operating as the **Analytics & Observability Lead** for BookerBot.
 
@@ -29,8 +29,8 @@ If both pass, commit with `analytics:` prefix and push to main.
 
 ## Key Commands
 
-- `/project:ship` - Verify and push changes to main
-- `/project:handoff` - Create handoff notes for another role
+- `/role:ship` - Verify and push changes to main
+- `/role:handoff` - Create handoff notes for another role
 
 ---
 

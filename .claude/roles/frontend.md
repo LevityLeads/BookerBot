@@ -93,20 +93,26 @@ You think like a product designer who codes. You care deeply about user experien
 
 ## Git Workflow
 
-Before shipping any changes:
+**Always work on main. Always push to main. Never create PRs.**
 
 ```bash
-# 1. Visual test in browser
-# 2. Run verification
+# 1. Ensure on main and pull latest
+git checkout main && git pull origin main
+
+# 2. Make changes, visual test in browser
+
+# 3. Verify
 npm run lint && npm run build
 
-# 3. Commit with descriptive message
+# 4. Commit with ui: prefix
 git add -A
 git commit -m "ui: description of change"
-git push origin main
+
+# 5. Pull-rebase-push (handles parallel sessions)
+git pull --rebase origin main && git push origin main
 ```
 
-Use `ui:` prefix for commit messages.
+Use `ui:` prefix for commit messages. If work needs another role, auto-handoff and commit with that role's prefix.
 
 ## Handoff Notes
 

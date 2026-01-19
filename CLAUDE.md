@@ -10,60 +10,137 @@ An AI-powered appointment booking system that automates lead qualification and s
 
 ## Role-Based Workflow System
 
-This project uses specialized Claude roles for parallel development. Each role has defined ownership areas and must follow the git workflow below.
+This project uses specialized Claude roles for parallel development. Roles are **auto-assigned** based on the task - you don't need to specify them explicitly. Handoffs between roles happen automatically when work crosses boundaries.
 
 ### Available Roles
 
 | Command | Role | Focus Area |
 |---------|------|------------|
-| `/project:ai` | AI Architect | Conversation engine, prompts, qualification |
-| `/project:integrations` | Integration Engineer | Twilio, Calendar, external APIs |
-| `/project:frontend` | Frontend Lead | Dashboard UI, components, styling |
-| `/project:data` | Data Architect | Database, API routes, data flows |
-| `/project:analytics` | Analytics Lead | Metrics, dashboards, monitoring |
-| `/project:qa` | QA Lead | Testing, reliability, hardening |
+| `/role:ai` | AI Architect | Conversation engine, prompts, qualification |
+| `/role:integrations` | Integration Engineer | Twilio, Calendar, external APIs |
+| `/role:frontend` | Frontend Lead | Dashboard UI, components, styling |
+| `/role:data` | Data Architect | Database, API routes, data flows |
+| `/role:analytics` | Analytics Lead | Metrics, dashboards, monitoring |
+| `/role:qa` | QA Lead | Testing, reliability, hardening |
 
-### Git Workflow (CRITICAL)
+### Utility Commands
 
-**Default: Verify → Push to Main**
+| Command | Purpose |
+|---------|---------|
+| `/role:ship` | Verify, commit, and push to main |
+| `/role:handoff` | Create structured handoff notes |
 
-All roles follow this workflow for standard changes:
+### Auto-Role Detection
+
+Claude automatically selects the appropriate role based on the task:
+
+| If the task involves... | Auto-assign role |
+|------------------------|------------------|
+| AI prompts, conversation flow, intent detection, qualification | **AI Architect** |
+| Twilio, webhooks, calendar, OAuth, external APIs | **Integration Engineer** |
+| UI components, pages, styling, React, Tailwind | **Frontend Lead** |
+| Database, API routes, types, Supabase queries | **Data Architect** |
+| Metrics, dashboards, token tracking, monitoring | **Analytics Lead** |
+| Testing, error handling, edge cases, hardening | **QA Lead** |
+
+**Cross-cutting tasks:** When work spans multiple areas, start with the primary role, then auto-handoff to other roles as needed. Document the handoff in the commit message.
+
+### Auto-Handoff Between Roles
+
+When a task requires expertise from another role:
+
+1. **Complete your portion** of the work
+2. **Commit with your role prefix** (e.g., `ai: add new intent pattern`)
+3. **Switch to the next role** automatically and continue
+4. **Commit that portion** with the new role prefix
+5. **Push everything to main** when complete
+
+Example flow:
+```
+Task: "Add reschedule intent and update the UI to show it"
+
+1. [AI Architect] Add reschedule intent detection
+   → Commit: "ai: add reschedule intent detection"
+2. [Auto-handoff to Frontend]
+3. [Frontend Lead] Add reschedule status badge to UI
+   → Commit: "ui: add reschedule status badge"
+4. Push all commits to main
+```
+
+### Git Workflow (ALWAYS MERGE TO MAIN)
+
+**The user never does manual merges or PRs.** All roles automatically push to main after verification.
+
+**Standard Workflow (Every Change):**
 
 ```bash
-# 1. Verify changes pass all checks
+# 1. Ensure on main branch
+git checkout main
+
+# 2. Pull latest first
+git pull origin main
+
+# 3. Make your changes...
+
+# 4. Verify changes pass all checks
 npm run lint && npm run build
 
-# 2. If checks pass, commit and push to main
+# 5. Commit with role prefix
 git add -A
-git commit -m "descriptive message"
+git commit -m "[role]: description"
+
+# 6. Pull again (in case parallel session pushed), rebase, and push
+git pull --rebase origin main
 git push origin main
 ```
 
-**Feature Branches: Only for Risky Changes**
+**NEVER create PRs or feature branches** unless explicitly told the change is experimental and might break everything irreversibly.
 
-Use feature branches ONLY when:
-- Major refactors touching multiple systems
-- Experimental features that might break production
-- Changes requiring staging environment testing
+### Parallel Session Coordination
+
+When multiple Claude sessions work simultaneously:
+
+1. **Always pull before starting work**
+   ```bash
+   git checkout main && git pull origin main
+   ```
+
+2. **Always pull --rebase before pushing**
+   ```bash
+   git pull --rebase origin main
+   ```
+
+3. **If rebase conflicts occur:**
+   - Resolve conflicts in the affected files
+   - `git add .` the resolved files
+   - `git rebase --continue`
+   - Push to main
+
+4. **Commit frequently** - smaller commits reduce conflict chance
+
+5. **Coordinate via file ownership** - roles have defined areas, so conflicts should be rare if each role stays in their lane
+
+### Conflict Resolution
+
+If `git pull --rebase` shows conflicts:
 
 ```bash
-# Create feature branch
-git checkout -b feature/description
+# 1. See which files conflict
+git status
 
-# After verification, merge to main
-git checkout main
-git merge feature/description
+# 2. Open each conflicted file, resolve the <<<< ==== >>>> markers
+
+# 3. Stage resolved files
+git add <resolved-file>
+
+# 4. Continue rebase
+git rebase --continue
+
+# 5. Push to main
 git push origin main
-git branch -d feature/description
 ```
 
-### Role Handoffs
-
-Use `/project:handoff` to pass work between roles. This creates a structured summary of:
-- What was completed
-- Current state of the codebase
-- Any blockers or dependencies
-- Recommended next steps
+**When in doubt:** If conflicts are complex or span critical files, describe the situation to the user before resolving.
 
 ---
 

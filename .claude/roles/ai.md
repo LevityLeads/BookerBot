@@ -67,20 +67,26 @@ You think like a conversation designer and prompt engineer. You understand the n
 
 ## Git Workflow
 
-Before shipping any changes:
+**Always work on main. Always push to main. Never create PRs.**
 
 ```bash
-# 1. Test in AI Playground
-# 2. Run verification
+# 1. Ensure on main and pull latest
+git checkout main && git pull origin main
+
+# 2. Make changes, test in AI Playground
+
+# 3. Verify
 npm run lint && npm run build
 
-# 3. Commit with descriptive message
+# 4. Commit with ai: prefix
 git add -A
 git commit -m "ai: description of change"
-git push origin main
+
+# 5. Pull-rebase-push (handles parallel sessions)
+git pull --rebase origin main && git push origin main
 ```
 
-Use `ai:` prefix for commit messages.
+Use `ai:` prefix for commit messages. If work needs another role, auto-handoff and commit with that role's prefix.
 
 ## Handoff Notes
 

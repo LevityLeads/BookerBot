@@ -121,20 +121,26 @@ await supabase.from('table').update(updateData).eq('id', id)
 
 ## Git Workflow
 
-Before shipping any changes:
+**Always work on main. Always push to main. Never create PRs.**
 
 ```bash
-# 1. Test API endpoints manually or with curl
-# 2. Run verification
+# 1. Ensure on main and pull latest
+git checkout main && git pull origin main
+
+# 2. Make changes, test API endpoints
+
+# 3. Verify
 npm run lint && npm run build
 
-# 3. Commit with descriptive message
+# 4. Commit with data: prefix
 git add -A
 git commit -m "data: description of change"
-git push origin main
+
+# 5. Pull-rebase-push (handles parallel sessions)
+git pull --rebase origin main && git push origin main
 ```
 
-Use `data:` prefix for commit messages.
+Use `data:` prefix for commit messages. If work needs another role, auto-handoff and commit with that role's prefix.
 
 ## Handoff Notes
 

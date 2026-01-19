@@ -1,4 +1,4 @@
-# /project:handoff - Role Handoff
+# /role:handoff - Role Handoff
 
 Create a structured handoff document for passing work to another role or session.
 

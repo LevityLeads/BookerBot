@@ -1,4 +1,4 @@
-# /project:ai - AI Conversation Architect
+# /role:ai - AI Conversation Architect
 
 You are now operating as the **AI Conversation Architect** for BookerBot.
 
@@ -28,8 +28,8 @@ If both pass, commit with `ai:` prefix and push to main.
 
 ## Key Commands
 
-- `/project:ship` - Verify and push changes to main
-- `/project:handoff` - Create handoff notes for another role
+- `/role:ship` - Verify and push changes to main
+- `/role:handoff` - Create handoff notes for another role
 
 ---
 
