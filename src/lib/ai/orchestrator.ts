@@ -124,7 +124,8 @@ export class ConversationOrchestrator {
       if (hasCalendar) {
         const rescheduleResult = await bookingHandler.startReschedule(
           typedContact,
-          bookingState
+          bookingState,
+          input.message
         )
 
         console.log('[Booking Flow] Reschedule result:', {

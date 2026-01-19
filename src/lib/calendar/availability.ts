@@ -302,15 +302,21 @@ export function parseTimeSelection(
     }
   }
 
-  // Try to match against formatted slots (exact match)
+  // Try to match against formatted slots (strict match only)
+  // We require near-exact matches to avoid false positives like "tues" matching "Tuesday, 20 Jan, 10:00 am"
+  // Only match if the user typed the full formatted slot or something very close
   for (const slot of availableSlots) {
     const normalizedSlot = slot.formatted.toLowerCase()
 
-    if (
-      normalizedInput.includes(normalizedSlot) ||
-      normalizedSlot.includes(normalizedInput)
-    ) {
-      return slot
+    // Require substantial overlap - the input should be most of the formatted slot
+    // This handles cases like "Tuesday 20 Jan 10am" matching "Tuesday, 20 Jan, 10:00 am"
+    if (normalizedInput.length >= normalizedSlot.length * 0.7) {
+      // Check if input contains most key parts of the slot
+      const slotParts = normalizedSlot.split(/[\s,]+/).filter(p => p.length > 2)
+      const matchCount = slotParts.filter(part => normalizedInput.includes(part)).length
+      if (matchCount >= slotParts.length * 0.6) {
+        return slot
+      }
     }
   }
 

@@ -80,6 +80,10 @@ const TIME_SELECTION_PATTERNS = [
   /\b(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)\s+(?:at|@)?\s*\d{1,2}/i, // "monday at 3"
   /\b(?:tomorrow|today)\s+(?:at|@)?\s*\d{1,2}/i,  // "tomorrow at 2"
   /\bi\s+(?:meant|mean|want|prefer|said)\s+\d{1,2}/i, // "I meant 3pm", "I want 2"
+  // Day names/abbreviations as standalone responses (e.g., "Tues", "Monday", "wed")
+  /^(?:mon(?:day)?|tue(?:s(?:day)?)?|wed(?:s|nes(?:day)?)?|thu(?:r(?:s(?:day)?)?)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?|tomorrow|today)$/i,
+  // Day with optional "please" or "works" (e.g., "Tuesday please", "Monday works")
+  /^(?:mon(?:day)?|tue(?:s(?:day)?)?|wed(?:s|nes(?:day)?)?|thu(?:r(?:s(?:day)?)?)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?|tomorrow|today)\s+(?:please|works|is good|sounds good)$/i,
 ]
 
 const POSITIVE_KEYWORDS = [
