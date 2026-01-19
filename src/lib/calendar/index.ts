@@ -76,6 +76,12 @@ export async function getCalendarConnectionForClient(
 
   // Refresh if expired or expiring in next 5 minutes
   if (expiresAt && expiresAt.getTime() < Date.now() + 5 * 60 * 1000) {
+    console.log('Calendar token expired or expiring soon, refreshing...', {
+      clientId,
+      expiresAt: expiresAt.toISOString(),
+      now: new Date().toISOString(),
+    })
+
     try {
       tokens = await provider.refreshTokens(connection.refresh_token)
 
@@ -90,8 +96,13 @@ export async function getCalendarConnectionForClient(
           updated_at: new Date().toISOString(),
         })
         .eq('id', connection.id)
+
+      console.log('Calendar tokens refreshed successfully', { clientId })
     } catch (err) {
-      console.error('Failed to refresh calendar tokens:', err)
+      console.error('Failed to refresh calendar tokens:', {
+        error: err instanceof Error ? err.message : err,
+        clientId,
+      })
       // Return existing tokens, they might still work
     }
   }

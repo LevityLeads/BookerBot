@@ -36,6 +36,7 @@ export interface EventInput {
   end: Date
   attendeeEmail?: string
   attendeeName?: string
+  timeZone?: string
 }
 
 export interface CalendarEvent {
