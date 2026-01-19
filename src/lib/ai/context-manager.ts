@@ -213,7 +213,8 @@ export class ContextManager {
       'confirmation',
       'unclear',
       'greeting',
-      'thanks'
+      'thanks',
+      'reschedule'
     ].includes(value as string)
   }
 
@@ -225,6 +226,9 @@ export class ContextManager {
     // If they want to opt out or need human, we're done
     if (intent === 'opt_out') return 'closing'
     if (intent === 'request_human') return 'closing'
+
+    // If they want to reschedule, go to booking flow
+    if (intent === 'reschedule') return 'offer_booking'
 
     // If they're showing booking interest and qualified, offer booking
     if (intent === 'booking_interest' && qualificationStatus === 'qualified') {
