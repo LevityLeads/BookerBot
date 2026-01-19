@@ -6,6 +6,67 @@ An AI-powered appointment booking system that automates lead qualification and s
 
 **Core flow:** Contact added → Initial outreach sent → AI converses → Qualifies lead → Books appointment
 
+---
+
+## Role-Based Workflow System
+
+This project uses specialized Claude roles for parallel development. Each role has defined ownership areas and must follow the git workflow below.
+
+### Available Roles
+
+| Command | Role | Focus Area |
+|---------|------|------------|
+| `/project:ai` | AI Architect | Conversation engine, prompts, qualification |
+| `/project:integrations` | Integration Engineer | Twilio, Calendar, external APIs |
+| `/project:frontend` | Frontend Lead | Dashboard UI, components, styling |
+| `/project:data` | Data Architect | Database, API routes, data flows |
+| `/project:analytics` | Analytics Lead | Metrics, dashboards, monitoring |
+| `/project:qa` | QA Lead | Testing, reliability, hardening |
+
+### Git Workflow (CRITICAL)
+
+**Default: Verify → Push to Main**
+
+All roles follow this workflow for standard changes:
+
+```bash
+# 1. Verify changes pass all checks
+npm run lint && npm run build
+
+# 2. If checks pass, commit and push to main
+git add -A
+git commit -m "descriptive message"
+git push origin main
+```
+
+**Feature Branches: Only for Risky Changes**
+
+Use feature branches ONLY when:
+- Major refactors touching multiple systems
+- Experimental features that might break production
+- Changes requiring staging environment testing
+
+```bash
+# Create feature branch
+git checkout -b feature/description
+
+# After verification, merge to main
+git checkout main
+git merge feature/description
+git push origin main
+git branch -d feature/description
+```
+
+### Role Handoffs
+
+Use `/project:handoff` to pass work between roles. This creates a structured summary of:
+- What was completed
+- Current state of the codebase
+- Any blockers or dependencies
+- Recommended next steps
+
+---
+
 ## Tech Stack
 
 - **Framework:** Next.js 14 (App Router)
