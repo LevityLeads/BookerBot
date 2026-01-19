@@ -1048,17 +1048,23 @@ class BookingHandler {
 
   /**
    * Start the reschedule flow - find existing appointment and offer new slots
+   * @param message - The user's reschedule request message (used to extract day preference)
    */
   async startReschedule(
     contact: ContactWithWorkflow,
-    bookingState: BookingState
+    bookingState: BookingState,
+    message?: string
   ): Promise<BookingFlowResult> {
     const client = contact.workflows.clients
     const supabase = await createClient()
 
+    // Extract day preference from the reschedule request (e.g., "Can we reschedule to Tuesday?")
+    const preferredDay = message ? extractDayFromMessage(message) : null
+
     console.log('[BookingHandler] startReschedule called:', {
       contactId: contact.id,
       clientId: client.id,
+      preferredDay,
     })
 
     // Find the existing appointment for this contact
@@ -1134,14 +1140,44 @@ class BookingHandler {
         }
       }
 
+      // If user requested a specific day, filter to that day first
+      let slotsToOffer = slots
+      let noSlotsOnPreferredDay = false
+
+      if (preferredDay && preferredDay !== 'tomorrow' && preferredDay !== 'today') {
+        const filteredSlots = this.filterSlotsByDay(preferredDay, slots)
+        if (filteredSlots.length > 0) {
+          slotsToOffer = filteredSlots
+          console.log('[BookingHandler] Filtered to preferred day:', preferredDay, 'slots:', filteredSlots.length)
+        } else {
+          // No slots on the requested day - we'll offer alternatives
+          noSlotsOnPreferredDay = true
+          console.log('[BookingHandler] No slots on preferred day:', preferredDay)
+        }
+      } else if (preferredDay === 'tomorrow') {
+        const filteredSlots = this.filterSlotsByDay('tomorrow', slots)
+        if (filteredSlots.length > 0) {
+          slotsToOffer = filteredSlots
+        } else {
+          noSlotsOnPreferredDay = true
+        }
+      } else if (preferredDay === 'today') {
+        const filteredSlots = this.filterSlotsByDay('today', slots)
+        if (filteredSlots.length > 0) {
+          slotsToOffer = filteredSlots
+        } else {
+          noSlotsOnPreferredDay = true
+        }
+      }
+
       const firstName = contact.first_name || 'there'
-      const message = this.buildRescheduleOfferMessage(firstName, slots)
+      const responseMessage = this.buildRescheduleOfferMessage(firstName, slotsToOffer, preferredDay, noSlotsOnPreferredDay)
 
       return {
-        message,
+        message: responseMessage,
         bookingState: {
           isActive: true,
-          offeredSlots: slots,
+          offeredSlots: slotsToOffer,
           slotsOfferedAt: new Date().toISOString(),
           selectedSlot: null,
           offerAttempts: bookingState.offerAttempts + 1,
@@ -1168,14 +1204,46 @@ class BookingHandler {
 
   /**
    * Build message offering new times for rescheduling
+   * @param preferredDay - The day the user requested (if any)
+   * @param noSlotsOnPreferredDay - True if user requested a day but no slots available
    */
-  private buildRescheduleOfferMessage(firstName: string, slots: TimeSlot[]): string {
+  private buildRescheduleOfferMessage(
+    firstName: string,
+    slots: TimeSlot[],
+    preferredDay?: string | null,
+    noSlotsOnPreferredDay?: boolean
+  ): string {
     const selectedSlots = this.selectDiverseSlots(slots, 4)
 
     if (selectedSlots.length === 0) {
       return `${firstName}, let me check on some times and get back to you.`
     }
 
+    // If user requested a specific day and we have slots on that day
+    if (preferredDay && !noSlotsOnPreferredDay) {
+      const dayDisplay = preferredDay.charAt(0).toUpperCase() + preferredDay.slice(1)
+      if (selectedSlots.length === 1) {
+        return `Sure, I've got ${selectedSlots[0].formatted} available on ${dayDisplay}. Does that work?`
+      }
+      // Format times only (not full dates since they're all on the same day)
+      const times = selectedSlots.map(s => {
+        const timePart = s.formatted.split(',').pop()?.trim() || s.formatted
+        return timePart
+      })
+      if (times.length === 2) {
+        return `Sure, on ${dayDisplay} I've got ${times[0]} or ${times[1]}. Which works better?`
+      }
+      const lastTime = times.pop()
+      return `Sure, on ${dayDisplay} I've got ${times.join(', ')}, or ${lastTime}. Which works?`
+    }
+
+    // If user requested a day but we don't have slots - offer alternatives
+    if (preferredDay && noSlotsOnPreferredDay) {
+      const dayDisplay = preferredDay.charAt(0).toUpperCase() + preferredDay.slice(1)
+      return `${dayDisplay}'s fully booked, but I've got ${this.formatSlotOptions(selectedSlots)}. Any of those work instead?`
+    }
+
+    // Default: no specific day requested
     const timeOptions = this.formatSlotsNaturally(firstName, selectedSlots)
       .replace(/does .* work for you\?/i, 'work instead?')
       .replace(/Any of those work\?/i, 'Any of those work instead?')
