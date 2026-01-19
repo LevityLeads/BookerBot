@@ -324,6 +324,35 @@ export class GoogleCalendarProvider implements CalendarProvider {
     eventId: string,
     event: EventInput
   ): Promise<CalendarEvent> {
+    console.log('[GoogleCalendar] updateEvent called:', {
+      calendarId,
+      eventId,
+      summary: event.summary,
+      attendeeEmail: event.attendeeEmail || 'NO ATTENDEE - NO INVITE WILL BE SENT',
+      timeZone: event.timeZone,
+      start: event.start.toISOString(),
+      end: event.end.toISOString(),
+    })
+
+    const attendees = event.attendeeEmail
+      ? [{ email: event.attendeeEmail, displayName: event.attendeeName }]
+      : undefined
+
+    if (!attendees) {
+      console.warn('[GoogleCalendar] WARNING: No attendee email provided - calendar invite will NOT be sent to contact')
+    }
+
+    // Use provided timezone or default to UTC
+    const timeZone = event.timeZone || 'UTC'
+
+    // Include sendUpdates to notify attendees of the change
+    const queryParams = new URLSearchParams({ sendUpdates: 'all' })
+
+    console.log('[GoogleCalendar] Update API request params:', {
+      sendUpdates: 'all',
+      hasAttendees: !!attendees,
+    })
+
     const data = await this.apiRequest<{
       id: string
       summary: string
@@ -332,17 +361,23 @@ export class GoogleCalendarProvider implements CalendarProvider {
       end: { dateTime: string }
       htmlLink?: string
     }>(
-      `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
+      `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}?${queryParams.toString()}`,
       {
         method: 'PUT',
         body: JSON.stringify({
           summary: event.summary,
           description: event.description,
-          start: { dateTime: event.start.toISOString() },
-          end: { dateTime: event.end.toISOString() },
+          start: { dateTime: event.start.toISOString(), timeZone },
+          end: { dateTime: event.end.toISOString(), timeZone },
+          attendees,
         }),
       }
     )
+
+    console.log('[GoogleCalendar] Event updated successfully:', {
+      eventId: data.id,
+      htmlLink: data.htmlLink,
+    })
 
     return {
       id: data.id,
