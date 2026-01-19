@@ -56,6 +56,63 @@ const DEFAULT_BUSINESS_HOURS: BusinessHours = {
   sunday: null,
 }
 
+/**
+ * Day name variations - maps common abbreviations and variations to canonical day names
+ */
+const DAY_VARIATIONS: Record<string, string> = {
+  // Monday
+  'monday': 'monday',
+  'mon': 'monday',
+  // Tuesday
+  'tuesday': 'tuesday',
+  'tue': 'tuesday',
+  'tues': 'tuesday',
+  // Wednesday
+  'wednesday': 'wednesday',
+  'wed': 'wednesday',
+  'weds': 'wednesday',
+  'wednes': 'wednesday',
+  // Thursday
+  'thursday': 'thursday',
+  'thu': 'thursday',
+  'thur': 'thursday',
+  'thurs': 'thursday',
+  // Friday
+  'friday': 'friday',
+  'fri': 'friday',
+  // Saturday
+  'saturday': 'saturday',
+  'sat': 'saturday',
+  // Sunday
+  'sunday': 'sunday',
+  'sun': 'sunday',
+}
+
+/**
+ * Extract canonical day name from message text
+ * Handles full names, abbreviations, and common variations
+ */
+function extractDayFromMessage(message: string): string | null {
+  const normalized = message.toLowerCase()
+
+  // Check for "tomorrow" and "today" first
+  if (/\btomorrow\b/.test(normalized)) return 'tomorrow'
+  if (/\btoday\b/.test(normalized)) return 'today'
+
+  // Sort by length descending to match longer patterns first (e.g., "wednesday" before "wed")
+  const sortedVariations = Object.keys(DAY_VARIATIONS).sort((a, b) => b.length - a.length)
+
+  for (const variation of sortedVariations) {
+    // Use word boundary to avoid matching partial words
+    const pattern = new RegExp(`\\b${variation}\\b`, 'i')
+    if (pattern.test(normalized)) {
+      return DAY_VARIATIONS[variation]
+    }
+  }
+
+  return null
+}
+
 class BookingHandler {
   /**
    * Check if calendar is connected for a client
@@ -316,6 +373,7 @@ class BookingHandler {
 
   /**
    * Parse the time the user is requesting (even if not available)
+   * Handles day abbreviations (e.g., "weds at 3pm", "thurs 2pm")
    */
   private parseRequestedTime(message: string): { hour: number; minute: number; day?: string } | null {
     const normalized = message.toLowerCase()
@@ -349,11 +407,13 @@ class BookingHandler {
       return null
     }
 
-    // Extract day if mentioned
-    const dayNames = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
-    const day = dayNames.find(d => normalized.includes(d))
+    // Extract day if mentioned (using centralized function that handles abbreviations)
+    const day = extractDayFromMessage(message)
 
-    return { hour, minute, day }
+    // Only include day if it's an actual day name (not "tomorrow"/"today" - those are handled separately)
+    const canonicalDay = day && day !== 'tomorrow' && day !== 'today' ? day : undefined
+
+    return { hour, minute, day: canonicalDay }
   }
 
   /**
@@ -399,17 +459,14 @@ class BookingHandler {
 
   /**
    * Parse if user only mentioned a day without a specific time
+   * Handles full day names and abbreviations (e.g., "weds", "thurs", "fri")
    */
   private parseDayOnly(message: string): string | null {
     const normalized = message.toLowerCase()
-    const dayNames = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
 
-    // Check for day mention
-    const mentionedDay = dayNames.find(day => normalized.includes(day))
+    // Use the centralized day extraction that handles abbreviations
+    const mentionedDay = extractDayFromMessage(message)
     if (!mentionedDay) {
-      // Check for "tomorrow" or "today"
-      if (normalized.includes('tomorrow')) return 'tomorrow'
-      if (normalized.includes('today')) return 'today'
       return null
     }
 

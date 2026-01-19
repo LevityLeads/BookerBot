@@ -16,6 +16,59 @@ const DAYS_OF_WEEK = [
   'saturday',
 ] as const
 
+/**
+ * Day name variations - maps common abbreviations and variations to canonical day names
+ */
+const DAY_VARIATIONS: Record<string, string> = {
+  // Monday
+  'monday': 'monday',
+  'mon': 'monday',
+  // Tuesday
+  'tuesday': 'tuesday',
+  'tue': 'tuesday',
+  'tues': 'tuesday',
+  // Wednesday
+  'wednesday': 'wednesday',
+  'wed': 'wednesday',
+  'weds': 'wednesday',
+  'wednes': 'wednesday',
+  // Thursday
+  'thursday': 'thursday',
+  'thu': 'thursday',
+  'thur': 'thursday',
+  'thurs': 'thursday',
+  // Friday
+  'friday': 'friday',
+  'fri': 'friday',
+  // Saturday
+  'saturday': 'saturday',
+  'sat': 'saturday',
+  // Sunday
+  'sunday': 'sunday',
+  'sun': 'sunday',
+}
+
+/**
+ * Extract canonical day name from message text
+ * Handles full names, abbreviations, and common variations
+ */
+function extractDayFromMessage(message: string): string | null {
+  const normalized = message.toLowerCase()
+
+  // Sort by length descending to match longer patterns first (e.g., "wednesday" before "wed")
+  const sortedVariations = Object.keys(DAY_VARIATIONS).sort((a, b) => b.length - a.length)
+
+  for (const variation of sortedVariations) {
+    // Use word boundary to avoid matching partial words
+    const pattern = new RegExp(`\\b${variation}\\b`, 'i')
+    if (pattern.test(normalized)) {
+      return DAY_VARIATIONS[variation]
+    }
+  }
+
+  return null
+}
+
 type DayOfWeek = (typeof DAYS_OF_WEEK)[number]
 
 interface AvailabilityOptions {
@@ -291,9 +344,8 @@ export function parseTimeSelection(
     }
   }
 
-  // Extract day from input
-  const dayNames = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
-  const inputDay = dayNames.find(day => normalizedInput.includes(day))
+  // Extract day from input (using centralized function that handles abbreviations)
+  const inputDay = extractDayFromMessage(normalizedInput)
 
   // If user specified a time, we MUST match that time (or return null)
   // We can't just book them for a different time!
@@ -318,8 +370,8 @@ export function parseTimeSelection(
       if (exactTimeMatch || hourMatch || ambiguousMatch) {
         // If day is also specified, it must match
         if (inputDay) {
-          const normalizedSlot = slot.formatted.toLowerCase()
-          const slotDay = dayNames.find(day => normalizedSlot.includes(day))
+          // Get the canonical day name from the slot's date
+          const slotDay = DAYS_OF_WEEK[slot.start.getDay()]
           if (slotDay === inputDay) {
             timeMatches.push(slot)
           }
