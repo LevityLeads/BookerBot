@@ -11,6 +11,7 @@ import {
   TimeSlot,
 } from '@/lib/calendar'
 import { Contact, Workflow, Client, BusinessHours } from '@/types/database'
+import { ToolCall, BookingToolInput } from '@/types/ai'
 
 type ContactWithWorkflow = Contact & {
   workflows: Workflow & {
@@ -1267,6 +1268,290 @@ class BookingHandler {
     if (options.length === 2) return `${options[0]} or ${options[1]}`
     const last = options.pop()
     return `${options.join(', ')}, or ${last}`
+  }
+
+  // ============================================
+  // Tool-based Booking Flow (New Architecture)
+  // ============================================
+
+  /**
+   * Handle a tool call from Claude for booking actions
+   * This is the new architecture - Claude tells us structured intent
+   */
+  async handleToolCall(
+    contact: ContactWithWorkflow,
+    toolCall: ToolCall,
+    bookingState: BookingState,
+    aiTextResponse: string | null
+  ): Promise<BookingFlowResult> {
+    console.log('[BookingHandler] handleToolCall:', {
+      tool: toolCall.name,
+      input: toolCall.input,
+      contactId: contact.id,
+    })
+
+    switch (toolCall.name) {
+      case 'select_time_slot':
+        return this.handleToolSlotSelection(contact, toolCall.input, bookingState, aiTextResponse)
+
+      case 'confirm_booking':
+        return this.handleToolConfirmation(contact, bookingState, aiTextResponse)
+
+      case 'request_different_times':
+        return this.handleToolDifferentTimes(contact, bookingState, toolCall.input, aiTextResponse)
+
+      case 'request_human_help':
+        return {
+          message: aiTextResponse || "I'll have someone from our team reach out to help you directly.",
+          bookingState: { ...bookingState, isActive: false },
+          appointmentCreated: false,
+          appointmentRescheduled: false,
+          continueWithAI: false,
+        }
+
+      default:
+        console.warn('[BookingHandler] Unknown tool:', toolCall.name)
+        return {
+          message: '',
+          bookingState,
+          appointmentCreated: false,
+          appointmentRescheduled: false,
+          continueWithAI: true,
+        }
+    }
+  }
+
+  /**
+   * Handle select_time_slot tool call
+   */
+  private async handleToolSlotSelection(
+    contact: ContactWithWorkflow,
+    input: BookingToolInput,
+    bookingState: BookingState,
+    aiTextResponse: string | null
+  ): Promise<BookingFlowResult> {
+    const { slot_index, day_preference, time_24h } = input
+    const firstName = contact.first_name || 'there'
+
+    // Case 1: Slot selected by index
+    if (slot_index !== undefined && slot_index > 0) {
+      const index = slot_index - 1 // Convert to 0-based
+      if (index >= 0 && index < bookingState.offeredSlots.length) {
+        const selectedSlot = bookingState.offeredSlots[index]
+        return this.createBookingFromSlot(contact, selectedSlot, bookingState)
+      }
+    }
+
+    // Case 2: Day + Time specified
+    if (day_preference && time_24h) {
+      const [hours, minutes] = time_24h.split(':').map(Number)
+      const matchingSlot = bookingState.offeredSlots.find(slot => {
+        const slotDay = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][slot.start.getDay()]
+        const slotHours = slot.start.getHours()
+        const slotMinutes = slot.start.getMinutes()
+        return slotDay === day_preference && slotHours === hours && slotMinutes === minutes
+      })
+
+      if (matchingSlot) {
+        return this.createBookingFromSlot(contact, matchingSlot, bookingState)
+      }
+
+      // Time not available - find alternatives on that day
+      const slotsOnDay = bookingState.offeredSlots.filter(slot => {
+        const slotDay = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][slot.start.getDay()]
+        return slotDay === day_preference
+      })
+
+      if (slotsOnDay.length > 0) {
+        const dayDisplay = day_preference.charAt(0).toUpperCase() + day_preference.slice(1)
+        const times = slotsOnDay.map(s => s.formatted.split(',').pop()?.trim() || s.formatted)
+        const timeList = times.length === 1 ? times[0] : times.slice(0, -1).join(', ') + ' or ' + times[times.length - 1]
+        return {
+          message: `${time_24h.replace(/^0/, '')} on ${dayDisplay} is booked. I've got ${timeList} available. Which works?`,
+          bookingState: {
+            ...bookingState,
+            lastOfferedSlot: slotsOnDay.length === 1 ? slotsOnDay[0] : null,
+          },
+          appointmentCreated: false,
+          appointmentRescheduled: false,
+          continueWithAI: false,
+        }
+      }
+
+      // No slots on that day at all
+      const dayDisplay = day_preference.charAt(0).toUpperCase() + day_preference.slice(1)
+      return {
+        message: `${dayDisplay}'s fully booked. I've got ${this.formatSlotOptions(bookingState.offeredSlots.slice(0, 3))}. Any of those work?`,
+        bookingState,
+        appointmentCreated: false,
+        appointmentRescheduled: false,
+        continueWithAI: false,
+      }
+    }
+
+    // Case 3: Only day specified (no time) - ask which time
+    if (day_preference && !time_24h) {
+      const slotsOnDay = bookingState.offeredSlots.filter(slot => {
+        const slotDay = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][slot.start.getDay()]
+        return slotDay === day_preference
+      })
+
+      const dayDisplay = day_preference.charAt(0).toUpperCase() + day_preference.slice(1)
+
+      if (slotsOnDay.length === 0) {
+        return {
+          message: `${dayDisplay}'s fully booked. I've got ${this.formatSlotOptions(bookingState.offeredSlots.slice(0, 3))}. Any of those work?`,
+          bookingState,
+          appointmentCreated: false,
+          appointmentRescheduled: false,
+          continueWithAI: false,
+        }
+      }
+
+      if (slotsOnDay.length === 1) {
+        // Only one slot on that day - offer it directly
+        return {
+          message: `On ${dayDisplay} I've got ${slotsOnDay[0].formatted.split(',').pop()?.trim()}. Does that work?`,
+          bookingState: {
+            ...bookingState,
+            lastOfferedSlot: slotsOnDay[0],
+          },
+          appointmentCreated: false,
+          appointmentRescheduled: false,
+          continueWithAI: false,
+        }
+      }
+
+      // Multiple slots - ask which time
+      const times = slotsOnDay.map(s => s.formatted.split(',').pop()?.trim() || s.formatted)
+      const timeList = times.length === 2 ? `${times[0]} or ${times[1]}` : times.slice(0, -1).join(', ') + ', or ' + times[times.length - 1]
+      return {
+        message: `On ${dayDisplay} I've got ${timeList}. Which works best?`,
+        bookingState: {
+          ...bookingState,
+          lastOfferedSlot: null,
+        },
+        appointmentCreated: false,
+        appointmentRescheduled: false,
+        continueWithAI: false,
+      }
+    }
+
+    // Couldn't determine slot - use AI response or ask for clarification
+    return {
+      message: aiTextResponse || `${firstName}, which time works best for you?`,
+      bookingState,
+      appointmentCreated: false,
+      appointmentRescheduled: false,
+      continueWithAI: false,
+    }
+  }
+
+  /**
+   * Handle confirm_booking tool call
+   */
+  private async handleToolConfirmation(
+    contact: ContactWithWorkflow,
+    bookingState: BookingState,
+    aiTextResponse: string | null
+  ): Promise<BookingFlowResult> {
+    const firstName = contact.first_name || 'there'
+
+    // If we have a last offered slot, book it
+    if (bookingState.lastOfferedSlot) {
+      return this.createBookingFromSlot(contact, bookingState.lastOfferedSlot, bookingState)
+    }
+
+    // If only one slot was offered, book it
+    if (bookingState.offeredSlots.length === 1) {
+      return this.createBookingFromSlot(contact, bookingState.offeredSlots[0], bookingState)
+    }
+
+    // Can't determine which slot - ask for clarification
+    return {
+      message: aiTextResponse || `${firstName}, just to confirm - which time slot works for you? ${this.formatSlotOptions(bookingState.offeredSlots.slice(0, 3))}`,
+      bookingState,
+      appointmentCreated: false,
+      appointmentRescheduled: false,
+      continueWithAI: false,
+    }
+  }
+
+  /**
+   * Handle request_different_times tool call
+   */
+  private async handleToolDifferentTimes(
+    contact: ContactWithWorkflow,
+    bookingState: BookingState,
+    input: BookingToolInput,
+    aiTextResponse: string | null
+  ): Promise<BookingFlowResult> {
+    // For now, use AI response or offer to have someone reach out
+    // In future, could try to fetch more slots from different date range
+    return {
+      message: aiTextResponse || "Those times don't work? Let me have someone reach out to find a better time for you.",
+      bookingState: {
+        ...bookingState,
+        offerAttempts: bookingState.offerAttempts + 1,
+      },
+      appointmentCreated: false,
+      appointmentRescheduled: false,
+      continueWithAI: false,
+    }
+  }
+
+  /**
+   * Create a booking from a selected slot
+   */
+  private async createBookingFromSlot(
+    contact: ContactWithWorkflow,
+    slot: TimeSlot,
+    bookingState: BookingState
+  ): Promise<BookingFlowResult> {
+    const firstName = contact.first_name || 'there'
+    const isRescheduling = bookingState.isRescheduling
+
+    console.log(`[BookingHandler] Creating booking from tool selection:`, {
+      contactId: contact.id,
+      slotFormatted: slot.formatted,
+      isRescheduling,
+    })
+
+    try {
+      const appointment = await this.createAppointment(
+        contact,
+        slot,
+        bookingState.existingAppointmentId,
+        bookingState.existingCalendarEventId
+      )
+
+      const confirmationMessage = isRescheduling
+        ? this.buildRescheduleConfirmationMessage(firstName, slot)
+        : this.buildConfirmationMessage(firstName, slot)
+
+      return {
+        message: confirmationMessage,
+        bookingState: {
+          ...bookingState,
+          selectedSlot: slot,
+          isActive: false,
+          lastOfferedSlot: null,
+        },
+        appointmentCreated: !isRescheduling,
+        appointmentRescheduled: isRescheduling,
+        appointmentId: appointment.id,
+        continueWithAI: false,
+      }
+    } catch (error) {
+      console.error('Failed to create appointment from tool:', error)
+      return {
+        message: "Hmm, something went wrong booking that time. Let me have someone reach out to lock in your appointment.",
+        bookingState,
+        appointmentCreated: false,
+        appointmentRescheduled: false,
+        continueWithAI: false,
+      }
+    }
   }
 }
 

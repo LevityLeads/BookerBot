@@ -290,6 +290,42 @@ export interface TestTurnResult {
 }
 
 // ============================================
+// Tool Use Types (for structured booking flow)
+// ============================================
+
+export interface BookingToolInput {
+  // For select_time_slot
+  slot_index?: number
+  day_preference?: 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday'
+  time_24h?: string // HH:mm format
+
+  // For request_different_times
+  reason?: string
+}
+
+export type BookingToolName =
+  | 'select_time_slot'
+  | 'confirm_booking'
+  | 'request_different_times'
+  | 'request_human_help'
+
+export interface ToolCall {
+  name: BookingToolName
+  input: BookingToolInput
+}
+
+export interface AIResponseWithTools {
+  // Text response to send to user (may be empty if tool handles response)
+  text: string | null
+  // Tool call if Claude decided to use a tool
+  toolCall: ToolCall | null
+  // Token usage
+  usage: TokenUsage
+  // Stop reason
+  stopReason: string | null
+}
+
+// ============================================
 // Utility Types
 // ============================================
 
