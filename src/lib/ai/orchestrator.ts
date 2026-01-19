@@ -272,8 +272,14 @@ export class ConversationOrchestrator {
     })
 
     // 15. Update contact in database
+    // Preserve booking state in the conversation context
+    const serializedContext = contextManager.serialize(updatedContext) as Record<string, unknown>
+    const contextWithBooking = {
+      ...serializedContext,
+      bookingState: bookingHandler.serializeState(bookingState)
+    }
     const updateData: Partial<Contact> = {
-      conversation_context: contextManager.serialize(updatedContext),
+      conversation_context: contextWithBooking as Json,
       last_message_at: new Date().toISOString()
     }
 
