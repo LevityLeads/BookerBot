@@ -92,14 +92,10 @@ export class ConversationOrchestrator {
           .eq('id', input.contactId)
           .single()
 
-        // Safely extract channel with null checks
-        let channel: 'sms' | 'whatsapp' = 'sms'
-        if (contact && typeof contact === 'object' && 'workflows' in contact) {
-          const workflows = contact.workflows as { channel?: string } | null
-          if (workflows?.channel === 'whatsapp') {
-            channel = 'whatsapp'
-          }
-        }
+        // Safely extract channel - default to SMS
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const contactData = contact as any
+        const channel: 'sms' | 'whatsapp' = contactData?.workflows?.channel === 'whatsapp' ? 'whatsapp' : 'sms'
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await (supabase as any).from('messages').insert({
