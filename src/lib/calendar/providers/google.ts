@@ -223,6 +223,9 @@ export class GoogleCalendarProvider implements CalendarProvider {
       ? [{ email: event.attendeeEmail, displayName: event.attendeeName }]
       : undefined
 
+    // Use provided timezone or default to UTC
+    const timeZone = event.timeZone || 'UTC'
+
     const data = await this.apiRequest<{
       id: string
       summary: string
@@ -230,13 +233,13 @@ export class GoogleCalendarProvider implements CalendarProvider {
       start: { dateTime: string }
       end: { dateTime: string }
       htmlLink?: string
-    }>(`/calendars/${encodeURIComponent(calendarId)}/events`, {
+    }>(`/calendars/${encodeURIComponent(calendarId)}/events?sendUpdates=all`, {
       method: 'POST',
       body: JSON.stringify({
         summary: event.summary,
         description: event.description,
-        start: { dateTime: event.start.toISOString() },
-        end: { dateTime: event.end.toISOString() },
+        start: { dateTime: event.start.toISOString(), timeZone },
+        end: { dateTime: event.end.toISOString(), timeZone },
         attendees,
         reminders: {
           useDefault: true,

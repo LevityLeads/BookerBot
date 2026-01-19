@@ -369,6 +369,16 @@ class BookingHandler {
     if (connection && connection.connection.calendar_id) {
       try {
         const contactName = `${contact.first_name || ''} ${contact.last_name || ''}`.trim() || 'Contact'
+        const clientTimezone = client.timezone || 'Europe/London'
+
+        console.log('Creating calendar event:', {
+          calendarId: connection.connection.calendar_id,
+          clientId: client.id,
+          contactId: contact.id,
+          startTime: slot.start.toISOString(),
+          timezone: clientTimezone,
+        })
+
         const event = await connection.provider.createEvent(
           connection.connection.calendar_id,
           {
@@ -378,13 +388,26 @@ class BookingHandler {
             end: slot.end,
             attendeeEmail: contact.email || undefined,
             attendeeName: contactName || undefined,
+            timeZone: clientTimezone,
           }
         )
         calendarEventId = event.id
+        console.log('Calendar event created successfully:', event.id)
       } catch (error) {
-        console.error('Failed to create calendar event:', error)
+        console.error('Failed to create calendar event:', {
+          error: error instanceof Error ? error.message : error,
+          clientId: client.id,
+          contactId: contact.id,
+          calendarId: connection.connection.calendar_id,
+        })
         // Continue without calendar event - still create DB record
       }
+    } else {
+      console.log('Skipping calendar event creation:', {
+        hasConnection: !!connection,
+        hasCalendarId: connection?.connection?.calendar_id,
+        clientId: client.id,
+      })
     }
 
     // Create appointment in database
