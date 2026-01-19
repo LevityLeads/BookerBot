@@ -19,6 +19,7 @@ interface PromptBuildParams {
   workflowInstructions?: string // Custom instructions from the workflow
   offeredSlots?: TimeSlot[] // Available slots offered during booking flow
   timezone?: string // Client's timezone (e.g., 'Europe/London')
+  bookingFlowActive?: boolean // True when booking flow is active but time selection couldn't be parsed
 }
 
 export class PromptBuilder {
@@ -142,10 +143,26 @@ You've already checked the calendar. These are the ONLY available times:
 ${params.offeredSlots.map((slot, i) => `${i + 1}. ${slot.formatted}`).join('\n')}
 
 Everything else is booked. You know this already - don't pretend to check again.
+`
 
+      // Add critical warning if booking flow is active but we fell through to AI
+      // This means the booking system couldn't parse their time selection
+      if (params.bookingFlowActive) {
+        prompt += `
+⚠️ CRITICAL: DO NOT CONFIRM ANY BOOKING ⚠️
+The user's message was unclear or didn't match an available time slot.
+You MUST ask them to specify which exact time works from the list above.
+NEVER say "you're booked" or "I've scheduled" - no appointment has been created yet.
+If they said something vague like "Monday works" → ask which TIME on Monday
+If they said "sounds good" without specifying → ask which slot they want
+`
+      }
+
+      prompt += `
 HOW TO HANDLE TIME REQUESTS:
 - If they say "tomorrow at 12" → use the date above to figure out what day tomorrow is, then check if 12pm that day is in your list
-- If they pick a time from the list → confirm it (the booking system handles the rest)
+- If they pick a SPECIFIC time from the list (like "Monday at 2pm") → confirm it (the booking system handles the rest)
+- If they just say a day without a time (like "Monday works") → ask which time on that day
 - If they request a time NOT in the list → that time is taken. Tell them: "[time] is booked - I've got [mention 1-2 available times]. Any of those work?"
 - If none of the times work for them → offer to have someone reach out to find another option
 
@@ -153,6 +170,7 @@ DO NOT:
 - Confirm times that aren't in the list (they're genuinely unavailable)
 - Say "let me check" or ask them to confirm the date - you already know the date
 - Be overly apologetic - just be matter-of-fact
+- EVER say "you're booked" unless they gave you a SPECIFIC time that matches one in your list
 `
     }
 

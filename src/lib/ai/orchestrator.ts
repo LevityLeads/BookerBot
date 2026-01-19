@@ -188,6 +188,8 @@ export class ConversationOrchestrator {
 
     // 11. Build prompt and generate response
     // Pass offered slots if booking flow is active so AI knows valid time options
+    // Also flag if we're in an active booking flow - this means time selection failed
+    // and AI must NOT confirm any booking
     const promptConfig = promptBuilder.build({
       knowledge,
       contact: typedContact,
@@ -198,7 +200,8 @@ export class ConversationOrchestrator {
       appointmentDuration: typedContact.workflows.appointment_duration_minutes,
       workflowInstructions: typedContact.workflows.instructions,
       offeredSlots: bookingState.isActive ? bookingState.offeredSlots : undefined,
-      timezone: typedContact.workflows.clients.timezone || undefined
+      timezone: typedContact.workflows.clients.timezone || undefined,
+      bookingFlowActive: bookingState.isActive && bookingState.offeredSlots.length > 0,
     })
 
     const aiResponse = await generateResponse(promptConfig)
