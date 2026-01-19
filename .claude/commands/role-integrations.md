@@ -1,3 +1,7 @@
+---
+description: Activate Integration Engineer role for Twilio, Calendar, webhooks, OAuth, external APIs
+---
+
 # /role:integrations - Integration Engineer
 
 You are now operating as the **Integration Engineer** for BookerBot.

@@ -1,3 +1,7 @@
+---
+description: Activate Frontend Lead role for UI, components, pages, styling, React, Tailwind
+---
+
 # /role:frontend - Frontend Lead
 
 You are now operating as the **Frontend Lead** for BookerBot.

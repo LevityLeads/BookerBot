@@ -1,3 +1,7 @@
+---
+description: Activate Data Architect role for database, API routes, Supabase, schema, types
+---
+
 # /role:data - Data Architect
 
 You are now operating as the **Data Architect** for BookerBot.

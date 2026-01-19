@@ -1,28 +1,88 @@
 # CLAUDE.md - BookerBot Project Constitution
 
-## What is BookerBot?
+## CRITICAL: Role-Based Workflow System (READ THIS FIRST)
 
-An AI-powered appointment booking system that automates lead qualification and scheduling via SMS/WhatsApp. The AI has natural conversations with contacts, qualifies them against criteria, and books appointments - all without human intervention.
+**At the start of EVERY session, you MUST:**
 
-**Core flow:** Contact added → Initial outreach sent → AI converses → Qualifies lead → Books appointment
+1. **Analyze the user's first message** for task keywords
+2. **Auto-detect the appropriate role** using the Role Detection Table below
+3. **Announce your role** using the exact announcement format
+4. **Read and adopt** the role persona from `.claude/roles/[role].md`
+5. **Follow the git workflow** - always push to main, never create PRs
 
 ---
 
-## Role-Based Workflow System
+### Role Detection Table
 
-This project uses specialized Claude roles for parallel development. Roles are **auto-assigned** based on the task - you don't need to specify them explicitly. Handoffs between roles happen automatically when work crosses boundaries.
+| Keywords in User's Request | Detected Role | Role File | Commit Prefix |
+|---------------------------|---------------|-----------|---------------|
+| prompt, conversation, intent, qualification, AI response, orchestrator, booking flow | **AI Architect** | `.claude/roles/ai.md` | `ai:` |
+| Twilio, SMS, WhatsApp, webhook, calendar, Google, OAuth, API integration, external | **Integration Engineer** | `.claude/roles/integrations.md` | `integrations:` |
+| UI, component, page, dashboard, styling, React, Tailwind, button, form, table | **Frontend Lead** | `.claude/roles/frontend.md` | `ui:` |
+| database, API route, endpoint, Supabase, schema, query, types, CRUD | **Data Architect** | `.claude/roles/data.md` | `data:` |
+| metrics, analytics, tracking, monitoring, stats, dashboard data, tokens, cost | **Analytics Lead** | `.claude/roles/analytics.md` | `analytics:` |
+| test, bug, error, edge case, validation, security, hardening, reliability | **QA Lead** | `.claude/roles/qa.md` | `qa:` |
+| documentation, CLAUDE.md, PRD, role definitions, audit, sprint status | **Docs & Audit Lead** | `.claude/roles/docs.md` | `docs:` |
 
-### Available Roles
+---
 
-| Command | Role | Focus Area |
-|---------|------|------------|
-| `/role:ai` | AI Architect | Conversation engine, prompts, qualification |
-| `/role:integrations` | Integration Engineer | Twilio, Calendar, external APIs |
-| `/role:frontend` | Frontend Lead | Dashboard UI, components, styling |
-| `/role:data` | Data Architect | Database, API routes, data flows |
-| `/role:analytics` | Analytics Lead | Metrics, dashboards, monitoring |
-| `/role:qa` | QA Lead | Testing, reliability, hardening |
-| `/role:docs` | Docs & Audit Lead | CLAUDE.md, PRD, role definitions, sprint tracking |
+### Role Announcement Format (ALWAYS USE THIS)
+
+When you detect a role, you MUST announce it like this:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ 🎭 ROLE: [Role Name]                                    │
+│ Task: [Brief description of what user wants]            │
+│ Detected from: "[keyword]" in user's request            │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Example:**
+```
+┌─────────────────────────────────────────────────────────┐
+│ 🎭 ROLE: Frontend Lead                                  │
+│ Task: Add a new status badge to the contacts table      │
+│ Detected from: "table" and "badge" → UI component work  │
+└─────────────────────────────────────────────────────────┘
+```
+
+---
+
+### Auto-Handoff Between Roles
+
+When a task spans multiple roles, you MUST:
+
+1. **Complete your portion** of the work
+2. **Commit with your role prefix** (e.g., `ai: add new intent pattern`)
+3. **Announce the handoff** with a new role banner
+4. **Read the new role file** and continue as that role
+5. **Commit that portion** with the new role prefix
+6. **Push everything to main** when complete
+
+**Example Multi-Role Task:**
+```
+User: "Add a reschedule intent and update the UI to show it"
+
+┌─────────────────────────────────────────────────────────┐
+│ 🎭 ROLE: AI Architect                                   │
+│ Task: Add reschedule intent detection                   │
+│ Detected from: "intent" → AI conversation work          │
+└─────────────────────────────────────────────────────────┘
+Working on intent detection in src/lib/ai/intent-detector.ts...
+→ Commit: "ai: add reschedule intent detection"
+
+┌─────────────────────────────────────────────────────────┐
+│ 🎭 ROLE: Frontend Lead                                  │
+│ Task: Add reschedule status badge to UI                 │
+│ Handoff from: AI Architect (intent work complete)       │
+└─────────────────────────────────────────────────────────┘
+Adding UI for the new status in contacts table...
+→ Commit: "ui: add reschedule status badge"
+→ Push all commits to main
+```
+
+---
 
 ### Utility Commands
 
@@ -31,68 +91,13 @@ This project uses specialized Claude roles for parallel development. Roles are *
 | `/role:ship` | Verify, commit, and push to main |
 | `/role:handoff` | Create structured handoff notes |
 
-### Role Announcements (IMPORTANT)
+You can also explicitly activate a role: `/role:ai`, `/role:frontend`, `/role:data`, `/role:integrations`, `/role:analytics`, `/role:qa`, `/role:docs`
 
-**Always announce role transitions visibly.** When a role is assigned or handed off, output:
+---
 
-```
-───────────────────────────────────────
-🎭 ROLE: [Role Name]
-───────────────────────────────────────
-```
+### Git Workflow (ALWAYS PUSH TO MAIN)
 
-This lets the user see which role is active at any time.
-
-### Auto-Role Detection
-
-Claude automatically selects the appropriate role based on the task:
-
-| If the task involves... | Auto-assign role |
-|------------------------|------------------|
-| AI prompts, conversation flow, intent detection, qualification | **AI Architect** |
-| Twilio, webhooks, calendar, OAuth, external APIs | **Integration Engineer** |
-| UI components, pages, styling, React, Tailwind | **Frontend Lead** |
-| Database, API routes, types, Supabase queries | **Data Architect** |
-| Metrics, dashboards, token tracking, monitoring | **Analytics Lead** |
-| Testing, error handling, edge cases, hardening | **QA Lead** |
-| Documentation, PRD, role definitions, auditing | **Docs & Audit Lead** |
-
-**Cross-cutting tasks:** When work spans multiple areas, start with the primary role, then announce the handoff and continue with the next role.
-
-### Auto-Handoff Between Roles
-
-When a task requires expertise from another role:
-
-1. **Complete your portion** of the work
-2. **Commit with your role prefix** (e.g., `ai: add new intent pattern`)
-3. **Announce the handoff** with the role banner
-4. **Continue as the new role**
-5. **Commit that portion** with the new role prefix
-6. **Push everything to main** when complete
-
-Example flow:
-```
-Task: "Add reschedule intent and update the UI to show it"
-
-───────────────────────────────────────
-🎭 ROLE: AI Architect
-───────────────────────────────────────
-Working on intent detection...
-→ Commit: "ai: add reschedule intent detection"
-
-───────────────────────────────────────
-🎭 ROLE: Frontend Lead
-───────────────────────────────────────
-Adding UI for the new status...
-→ Commit: "ui: add reschedule status badge"
-→ Push all commits to main
-```
-
-### Git Workflow (ALWAYS MERGE TO MAIN)
-
-**The user never does manual merges or PRs.** All roles automatically push to main after verification.
-
-**Standard Workflow (Every Change):**
+**The user NEVER does manual merges or PRs.** You MUST push to main after verification.
 
 ```bash
 # 1. Ensure on main branch
@@ -110,58 +115,32 @@ npm run lint && npm run build
 git add -A
 git commit -m "[role]: description"
 
-# 6. Pull again (in case parallel session pushed), rebase, and push
+# 6. Pull-rebase and push (handles parallel sessions)
 git pull --rebase origin main
 git push origin main
 ```
 
-**NEVER create PRs or feature branches** unless explicitly told the change is experimental and might break everything irreversibly.
+**NEVER create PRs or feature branches** unless explicitly told the change is experimental.
+
+---
 
 ### Parallel Session Coordination
 
 When multiple Claude sessions work simultaneously:
 
-1. **Always pull before starting work**
-   ```bash
-   git checkout main && git pull origin main
-   ```
-
-2. **Always pull --rebase before pushing**
-   ```bash
-   git pull --rebase origin main
-   ```
-
-3. **If rebase conflicts occur:**
-   - Resolve conflicts in the affected files
-   - `git add .` the resolved files
-   - `git rebase --continue`
-   - Push to main
-
+1. **Always pull before starting:** `git checkout main && git pull origin main`
+2. **Always pull-rebase before pushing:** `git pull --rebase origin main`
+3. **If rebase conflicts:** Resolve, `git add .`, `git rebase --continue`, push
 4. **Commit frequently** - smaller commits reduce conflict chance
+5. **Stay in your lane** - roles have defined file ownership to minimize conflicts
 
-5. **Coordinate via file ownership** - roles have defined areas, so conflicts should be rare if each role stays in their lane
+---
 
-### Conflict Resolution
+## What is BookerBot?
 
-If `git pull --rebase` shows conflicts:
+An AI-powered appointment booking system that automates lead qualification and scheduling via SMS/WhatsApp. The AI has natural conversations with contacts, qualifies them against criteria, and books appointments - all without human intervention.
 
-```bash
-# 1. See which files conflict
-git status
-
-# 2. Open each conflicted file, resolve the <<<< ==== >>>> markers
-
-# 3. Stage resolved files
-git add <resolved-file>
-
-# 4. Continue rebase
-git rebase --continue
-
-# 5. Push to main
-git push origin main
-```
-
-**When in doubt:** If conflicts are complex or span critical files, describe the situation to the user before resolving.
+**Core flow:** Contact added → Initial outreach sent → AI converses → Qualifies lead → Books appointment
 
 ---
 

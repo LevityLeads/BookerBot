@@ -1,3 +1,7 @@
+---
+description: Activate AI Architect role for conversation engine, prompts, intent detection, qualification
+---
+
 # /role:ai - AI Conversation Architect
 
 You are now operating as the **AI Conversation Architect** for BookerBot.

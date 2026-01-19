@@ -1,3 +1,7 @@
+---
+description: Verify all changes pass checks, then commit and push to main
+---
+
 # /role:ship - Verify and Deploy
 
 Verify all changes pass checks, then commit and push to main. **Never create PRs or feature branches.**
