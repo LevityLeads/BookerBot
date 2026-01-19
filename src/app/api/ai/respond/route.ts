@@ -25,8 +25,8 @@ export async function POST(request: Request) {
       )
     }
 
-    // Process message through orchestrator
-    const result = await orchestrator.processMessage({
+    // Process message through orchestrator (using safe method with error boundary)
+    const result = await orchestrator.processMessageSafe({
       contactId: body.contactId,
       message: body.message.trim()
     })

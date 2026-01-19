@@ -6,6 +6,83 @@
 import { CalendarProvider, TimeSlot } from './types'
 import { BusinessHours } from '@/types/database'
 
+/**
+ * Get the timezone offset in milliseconds for a specific date and timezone
+ * This handles DST correctly by checking the actual date
+ */
+function getTimezoneOffset(date: Date, timezone: string): number {
+  try {
+    // Format the date in the target timezone to get its components
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    })
+
+    const parts = formatter.formatToParts(date)
+    const getPart = (type: string) => parseInt(parts.find(p => p.type === type)?.value || '0', 10)
+
+    // Create a date from the timezone's local components
+    const tzYear = getPart('year')
+    const tzMonth = getPart('month') - 1
+    const tzDay = getPart('day')
+    const tzHour = getPart('hour')
+    const tzMinute = getPart('minute')
+    const tzSecond = getPart('second')
+
+    // Create a UTC date with the same wall-clock time
+    const utcDate = Date.UTC(tzYear, tzMonth, tzDay, tzHour, tzMinute, tzSecond)
+
+    // The difference is the offset
+    return date.getTime() - utcDate
+  } catch {
+    // Fallback to 0 offset if timezone is invalid
+    console.warn(`Invalid timezone: ${timezone}, using UTC`)
+    return 0
+  }
+}
+
+/**
+ * Create a Date object for a specific time in a given timezone
+ * This properly handles the timezone so business hours are interpreted correctly
+ */
+function createDateInTimezone(
+  baseDate: Date,
+  hour: number,
+  minute: number,
+  timezone: string
+): Date {
+  // Get the date components in the target timezone
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  })
+
+  const parts = formatter.formatToParts(baseDate)
+  const getPart = (type: string) => parseInt(parts.find(p => p.type === type)?.value || '0', 10)
+
+  const year = getPart('year')
+  const month = getPart('month') - 1
+  const day = getPart('day')
+
+  // Create a UTC date with the target wall-clock time
+  const utcDate = new Date(Date.UTC(year, month, day, hour, minute, 0, 0))
+
+  // Get the offset for this specific date/time in the target timezone
+  // We need to adjust because the date we created is in UTC but represents local time
+  const offset = getTimezoneOffset(utcDate, timezone)
+
+  // Adjust to get the actual UTC time that corresponds to this local time
+  return new Date(utcDate.getTime() + offset)
+}
+
 const DAYS_OF_WEEK = [
   'sunday',
   'monday',
@@ -132,19 +209,24 @@ export async function getAvailableSlots(
       const [endHour, endMinute] = dayHours.end.split(':').map(Number)
 
       // Create day start/end in client's timezone
-      const dayStart = new Date(currentDate)
-      dayStart.setHours(startHour, startMinute, 0, 0)
-
-      const dayEnd = new Date(currentDate)
-      dayEnd.setHours(endHour, endMinute, 0, 0)
+      // This ensures business hours like "9am-5pm" are interpreted in the client's timezone
+      // not the server's timezone
+      const dayStart = createDateInTimezone(currentDate, startHour, startMinute, timezone)
+      const dayEnd = createDateInTimezone(currentDate, endHour, endMinute, timezone)
 
       // Generate slots for this day
       let slotStart = new Date(Math.max(dayStart.getTime(), startDate.getTime()))
 
-      // Round up to next 30-minute interval
-      const minutes = slotStart.getMinutes()
-      if (minutes % 30 !== 0) {
-        slotStart.setMinutes(minutes + (30 - (minutes % 30)), 0, 0)
+      // Round up to next 30-minute interval in the client's timezone
+      // We need to get minutes in the target timezone, not server local time
+      const minutesFormatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: timezone,
+        minute: '2-digit'
+      })
+      const tzMinutes = parseInt(minutesFormatter.format(slotStart), 10)
+      if (tzMinutes % 30 !== 0) {
+        const msToAdd = (30 - (tzMinutes % 30)) * 60 * 1000
+        slotStart = new Date(slotStart.getTime() + msToAdd)
       }
 
       while (slotStart.getTime() + slotDuration <= dayEnd.getTime() && slots.length < maxSlots) {

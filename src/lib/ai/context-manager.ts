@@ -71,21 +71,54 @@ export class ContextManager {
       ].filter((v, i, a) => a.indexOf(v) === i)
     }
 
-    // Merge qualification state
+    // Merge qualification state with proper pruning
+    // When criteria transition between states (matched↔missed↔unknown),
+    // remove from old state to prevent ambiguity
     const newQualification: QualificationState = params.qualificationUpdate
-      ? {
-          status: params.qualificationUpdate.status || current.qualification.status,
-          criteriaMatched: [
+      ? (() => {
+          const newMatched = new Set([
             ...current.qualification.criteriaMatched,
             ...(params.qualificationUpdate.criteriaMatched || [])
-          ].filter((v, i, a) => a.indexOf(v) === i),
-          criteriaUnknown: params.qualificationUpdate.criteriaUnknown ||
-            current.qualification.criteriaUnknown,
-          criteriaMissed: [
+          ])
+          const newMissed = new Set([
             ...current.qualification.criteriaMissed,
             ...(params.qualificationUpdate.criteriaMissed || [])
-          ].filter((v, i, a) => a.indexOf(v) === i)
-        }
+          ])
+          const newUnknown = new Set([
+            ...current.qualification.criteriaUnknown,
+            ...(params.qualificationUpdate.criteriaUnknown || [])
+          ])
+
+          // If newly matched, remove from missed and unknown
+          for (const criterion of params.qualificationUpdate.criteriaMatched || []) {
+            newMissed.delete(criterion)
+            newUnknown.delete(criterion)
+          }
+
+          // If newly missed, remove from matched and unknown
+          for (const criterion of params.qualificationUpdate.criteriaMissed || []) {
+            newMatched.delete(criterion)
+            newUnknown.delete(criterion)
+          }
+
+          // If newly unknown (re-evaluation), remove from matched and missed
+          // This allows criteria to be re-assessed if circumstances change
+          for (const criterion of params.qualificationUpdate.criteriaUnknown || []) {
+            // Only reset if explicitly marked as unknown in this update
+            // (not carried over from previous state)
+            if (!current.qualification.criteriaUnknown.includes(criterion)) {
+              newMatched.delete(criterion)
+              newMissed.delete(criterion)
+            }
+          }
+
+          return {
+            status: params.qualificationUpdate.status || current.qualification.status,
+            criteriaMatched: Array.from(newMatched),
+            criteriaUnknown: Array.from(newUnknown),
+            criteriaMissed: Array.from(newMissed)
+          }
+        })()
       : current.qualification
 
     // Generate updated summary

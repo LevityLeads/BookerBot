@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { orchestrator } from '@/lib/ai/orchestrator'
 import { sendMessage, validateTwilioRequest, formatPhoneNumber } from '@/lib/twilio/client'
+import { isOptOutMessage } from '@/lib/constants/opt-out'
 
 /**
  * Calculate a realistic "typing" delay based on message length.
@@ -32,9 +33,6 @@ function calculateTypingDelay(messageLength: number): number {
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
-
-// Standard Twilio opt-out keywords
-const OPT_OUT_KEYWORDS = ['stop', 'stopall', 'unsubscribe', 'cancel', 'end', 'quit']
 
 // Contact type for query results
 interface ContactResult {
@@ -85,10 +83,8 @@ export async function POST(request: Request) {
     const supabase = createClient()
 
     // Check for Twilio's built-in opt-out detection or our keywords
-    const normalizedBody = body.toLowerCase().trim()
-    const isOptOut = optOutType === 'STOP' ||
-      OPT_OUT_KEYWORDS.includes(normalizedBody) ||
-      OPT_OUT_KEYWORDS.some(kw => normalizedBody === kw)
+    // Using centralized opt-out detection from @/lib/constants/opt-out
+    const isOptOut = optOutType === 'STOP' || isOptOutMessage(body, true)
 
     if (isOptOut) {
       console.log(`Opt-out detected from ${formattedPhone}`)
@@ -194,7 +190,7 @@ export async function POST(request: Request) {
     })
 
     // Process the message through the AI orchestrator
-    const result = await orchestrator.processMessage({
+    const result = await orchestrator.processMessageSafe({
       contactId: contact.id,
       message: body
     })

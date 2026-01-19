@@ -1,5 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { Contact, Workflow, Client } from '@/types/database'
+import { sendMessage, isTwilioConfigured } from '@/lib/twilio/client'
 
 type ContactWithWorkflow = Contact & {
   workflows: Workflow & {
@@ -42,13 +43,15 @@ export class HandoffHandler {
     contact: ContactWithWorkflow,
     reason: string
   ): Promise<void> {
-    // TODO: Implement Twilio SMS notification in Sprint 4 (Twilio Integration)
-    // For now, just log the notification
     const adminPhone = process.env.ADMIN_PHONE_NUMBER
     const contactName = `${contact.first_name || ''} ${contact.last_name || ''}`.trim() || 'Unknown'
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://your-app.vercel.app'
 
-    const message = `[BookerBot Escalation]
+    // Build concise message for SMS (keep under 160 chars if possible)
+    const shortMessage = `🚨 Escalation: ${contactName} (${contact.workflows.clients.name})\n${reason}\n${appUrl}/contacts/${contact.id}`
+
+    // Full message for logging
+    const fullMessage = `[BookerBot Escalation]
 Contact: ${contactName}
 Phone: ${contact.phone || 'N/A'}
 Workflow: ${contact.workflows.name}
@@ -58,11 +61,35 @@ Reason: ${reason}
 
 Review: ${appUrl}/contacts/${contact.id}`
 
-    // Log notification for now (Twilio integration coming in next sprint)
+    // Always log the notification
     console.log('=== ADMIN NOTIFICATION ===')
-    console.log(`Would send to: ${adminPhone || 'NOT CONFIGURED'}`)
-    console.log(message)
+    console.log(`Admin phone: ${adminPhone || 'NOT CONFIGURED'}`)
+    console.log(fullMessage)
     console.log('========================')
+
+    // Send SMS if configured
+    if (adminPhone && isTwilioConfigured()) {
+      try {
+        const result = await sendMessage({
+          to: adminPhone,
+          body: shortMessage,
+          channel: 'sms'
+        })
+
+        if (result.success) {
+          console.log(`[Escalation] Admin notification sent successfully (SID: ${result.sid})`)
+        } else {
+          console.error(`[Escalation] Failed to send admin notification: ${result.error}`)
+        }
+      } catch (error) {
+        // Don't let notification failure break the escalation flow
+        console.error('[Escalation] Error sending admin notification:', error)
+      }
+    } else if (!adminPhone) {
+      console.warn('[Escalation] ADMIN_PHONE_NUMBER not configured - SMS notification skipped')
+    } else {
+      console.warn('[Escalation] Twilio not configured - SMS notification skipped')
+    }
   }
 
   // Generate a graceful handoff message to send to the contact

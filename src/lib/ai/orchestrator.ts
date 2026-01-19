@@ -21,7 +21,146 @@ type ContactWithWorkflow = Contact & {
   }
 }
 
+/**
+ * Error types that can occur during message processing
+ */
+type OrchestratorErrorType =
+  | 'contact_not_found'
+  | 'contact_opted_out'
+  | 'contact_handed_off'
+  | 'workflow_inactive'
+  | 'ai_generation_failed'
+  | 'database_error'
+  | 'unknown'
+
+interface OrchestratorError extends Error {
+  type: OrchestratorErrorType
+  contactId?: string
+  recoverable: boolean
+}
+
+/**
+ * Create a typed error for the orchestrator
+ */
+function createOrchestratorError(
+  type: OrchestratorErrorType,
+  message: string,
+  contactId?: string,
+  recoverable = false
+): OrchestratorError {
+  const error = new Error(message) as OrchestratorError
+  error.type = type
+  error.contactId = contactId
+  error.recoverable = recoverable
+  return error
+}
+
 export class ConversationOrchestrator {
+  /**
+   * Process a message with error boundary protection.
+   * This wrapper ensures graceful error handling and fallback responses.
+   */
+  async processMessageSafe(input: ProcessMessageInput): Promise<ProcessMessageResult> {
+    try {
+      return await this.processMessage(input)
+    } catch (error) {
+      console.error('[Orchestrator] Error processing message:', {
+        contactId: input.contactId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      })
+
+      // Determine error type and generate appropriate response
+      const orchError = error as OrchestratorError
+
+      // For non-recoverable errors, re-throw so caller can handle
+      if (orchError.type === 'contact_opted_out' ||
+          orchError.type === 'contact_handed_off' ||
+          orchError.type === 'workflow_inactive') {
+        throw error
+      }
+
+      // For recoverable errors, return a graceful fallback response
+      const fallbackMessage = this.getFallbackMessage(orchError.type)
+
+      // Try to save the fallback response to the database
+      try {
+        const supabase = createClient()
+        const { data: contact } = await supabase
+          .from('contacts')
+          .select('workflows(channel)')
+          .eq('id', input.contactId)
+          .single()
+
+        const channel = (contact as { workflows?: { channel?: string } })?.workflows?.channel || 'sms'
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (supabase as any).from('messages').insert({
+          contact_id: input.contactId,
+          direction: 'outbound',
+          channel,
+          content: fallbackMessage,
+          status: 'pending',
+          ai_generated: true,
+          tokens_used: 0,
+          ai_model: 'fallback-handler'
+        })
+      } catch (saveError) {
+        console.error('[Orchestrator] Failed to save fallback response:', saveError)
+      }
+
+      return {
+        response: fallbackMessage,
+        intent: {
+          intent: 'unclear',
+          confidence: 0,
+          entities: {},
+          requiresEscalation: true,
+          escalationReason: `System error: ${error instanceof Error ? error.message : 'Unknown error'}`
+        },
+        contextUpdate: {
+          extractedInfo: { objections: [], additionalNotes: [] },
+          qualification: {
+            status: 'unknown',
+            criteriaMatched: [],
+            criteriaUnknown: [],
+            criteriaMissed: []
+          },
+          state: {
+            currentGoal: 'initial_engagement',
+            turnCount: 0,
+            lastIntent: 'unclear',
+            escalationAttempts: 1,
+            followUpsSent: 0,
+            lastMessageAt: new Date().toISOString()
+          },
+          summary: 'Error occurred during processing',
+          messageCount: 0
+        },
+        statusUpdate: undefined,
+        tokensUsed: { input: 0, output: 0, total: 0, model: 'fallback' },
+        shouldEscalate: true,
+        escalationReason: `System error during message processing`
+      }
+    }
+  }
+
+  /**
+   * Get an appropriate fallback message based on error type
+   */
+  private getFallbackMessage(errorType: OrchestratorErrorType): string {
+    switch (errorType) {
+      case 'ai_generation_failed':
+        return "I'm having a bit of trouble right now. Let me have someone follow up with you shortly."
+      case 'database_error':
+        return "Technical hiccup on my end! Someone from the team will reach out to help you."
+      case 'contact_not_found':
+        return "I don't seem to have your details on file. Could you provide your name and what you're looking for?"
+      default:
+        return "Something went wrong on my end. Let me have a team member reach out to you directly."
+    }
+  }
+
   async processMessage(input: ProcessMessageInput): Promise<ProcessMessageResult> {
     const supabase = createClient()
 
@@ -39,22 +178,42 @@ export class ConversationOrchestrator {
       .single()
 
     if (contactError || !contact) {
-      throw new Error(`Contact not found: ${input.contactId}`)
+      throw createOrchestratorError(
+        'contact_not_found',
+        `Contact not found: ${input.contactId}`,
+        input.contactId,
+        false
+      )
     }
 
     const typedContact = contact as unknown as ContactWithWorkflow
 
     // 2. Check if we should process this contact
     if (typedContact.opted_out || typedContact.status === 'opted_out') {
-      throw new Error('Contact has opted out')
+      throw createOrchestratorError(
+        'contact_opted_out',
+        'Contact has opted out',
+        input.contactId,
+        false
+      )
     }
 
     if (typedContact.status === 'handed_off') {
-      throw new Error('Contact is already handed off to human')
+      throw createOrchestratorError(
+        'contact_handed_off',
+        'Contact is already handed off to human',
+        input.contactId,
+        false
+      )
     }
 
     if (typedContact.workflows.status !== 'active') {
-      throw new Error('Workflow is not active')
+      throw createOrchestratorError(
+        'workflow_inactive',
+        'Workflow is not active',
+        input.contactId,
+        false
+      )
     }
 
     // 3. Parse conversation context
@@ -90,10 +249,28 @@ export class ConversationOrchestrator {
     // 9. Parse workflow knowledge
     const knowledge = this.parseWorkflowKnowledge(typedContact.workflows)
 
+    // 9.5. Check if previously disqualified contact should be given another chance
+    let contextForAssessment = context
+    const requalCheck = qualificationEngine.shouldAllowRequalification(
+      context,
+      input.message,
+      typedContact.last_message_at
+    )
+    if (requalCheck.allow) {
+      console.log('[Qualification] Allowing re-qualification for previously disqualified contact', {
+        contactId: input.contactId,
+        criteriaToReset: requalCheck.resetCriteria
+      })
+      contextForAssessment = qualificationEngine.resetCriteriaForReassessment(
+        context,
+        requalCheck.resetCriteria
+      )
+    }
+
     // 10. Assess qualification
     const qualificationAssessment = await qualificationEngine.assess(
       knowledge.qualificationCriteria,
-      context,
+      contextForAssessment,
       messageHistory,
       input.message
     )
@@ -194,8 +371,8 @@ export class ConversationOrchestrator {
           appointmentId: bookingResult.appointmentId,
         })
 
-        // Save response and return
-        return this.saveBookingResponseWithUsage(
+        // Save response and return (using unified method with usage tracking)
+        return this.saveBookingResponse(
           typedContact,
           context,
           bookingResult,
@@ -346,12 +523,12 @@ export class ConversationOrchestrator {
       last_message_at: new Date().toISOString()
     }
 
+    // Apply status update - prioritize qualification status over in_conversation transition
     if (statusUpdate) {
+      // Qualification status takes precedence (qualified, disqualified, etc.)
       updateData.status = statusUpdate.newStatus
-    }
-
-    // Update to in_conversation if first response
-    if (typedContact.status === 'pending' || typedContact.status === 'contacted') {
+    } else if (typedContact.status === 'pending' || typedContact.status === 'contacted') {
+      // Only transition to in_conversation if no qualification status update
       updateData.status = 'in_conversation'
     }
 
@@ -535,7 +712,14 @@ export class ConversationOrchestrator {
   }
 
   /**
-   * Save a booking flow response and update contact
+   * Unified method to save booking flow response and update contact.
+   * Consolidates saveBookingResponse and saveBookingResponseWithUsage.
+   *
+   * @param contact - The contact with workflow data
+   * @param context - Current conversation context
+   * @param bookingResult - Result from booking handler
+   * @param userMessage - The user's original message
+   * @param usage - Optional token usage (defaults to zero for non-AI responses)
    */
   private async saveBookingResponse(
     contact: ContactWithWorkflow,
@@ -547,110 +731,18 @@ export class ConversationOrchestrator {
       appointmentRescheduled?: boolean
       appointmentId?: string
     },
-    userMessage: string
+    userMessage: string,
+    usage: { input: number; output: number; total: number; model: string } = {
+      input: 0,
+      output: 0,
+      total: 0,
+      model: 'booking-handler'
+    }
   ): Promise<ProcessMessageResult> {
     const supabase = await createClient()
+    const aiCost = usage.total > 0 ? estimateCost(usage) : 0
 
     // Save the booking response message
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase as any).from('messages').insert({
-      contact_id: contact.id,
-      direction: 'outbound',
-      channel: contact.workflows.channel,
-      content: bookingResult.message,
-      status: 'pending',
-      ai_generated: true,
-      tokens_used: 0,
-      input_tokens: 0,
-      output_tokens: 0,
-      ai_model: 'booking-handler',
-      ai_cost: 0
-    })
-
-    // Determine intent based on what happened
-    const wasCompleted = bookingResult.appointmentCreated || bookingResult.appointmentRescheduled
-    const intentType = wasCompleted
-      ? 'confirmation'
-      : bookingResult.bookingState.isRescheduling
-        ? 'reschedule'
-        : 'booking_interest'
-
-    // Update context with booking state
-    const updatedContext = contextManager.update(context, {
-      intent: intentType,
-      userMessage,
-      aiResponse: bookingResult.message
-    })
-
-    // Prepare conversation context with booking state
-    const serializedContext = contextManager.serialize(updatedContext) as Record<string, unknown>
-    const contextWithBooking = {
-      ...serializedContext,
-      bookingState: bookingHandler.serializeState(bookingResult.bookingState)
-    }
-
-    // Update contact
-    const updateData: Partial<Contact> & { conversation_context: Json } = {
-      conversation_context: contextWithBooking as Json,
-      last_message_at: new Date().toISOString()
-    }
-
-    // Contact stays booked after reschedule, becomes booked after new booking
-    if (bookingResult.appointmentCreated) {
-      updateData.status = 'booked'
-    }
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase as any)
-      .from('contacts')
-      .update(updateData)
-      .eq('id', contact.id)
-
-    // Determine status update
-    let statusUpdate: { newStatus: Contact['status']; reason: string } | undefined
-    if (bookingResult.appointmentCreated) {
-      statusUpdate = { newStatus: 'booked', reason: 'Appointment booked' }
-    } else if (bookingResult.appointmentRescheduled) {
-      statusUpdate = { newStatus: 'booked', reason: 'Appointment rescheduled' }
-    }
-
-    return {
-      response: bookingResult.message,
-      intent: {
-        intent: intentType,
-        confidence: 1.0,
-        entities: bookingResult.appointmentId
-          ? { appointmentId: bookingResult.appointmentId }
-          : {},
-        requiresEscalation: false
-      },
-      contextUpdate: updatedContext,
-      statusUpdate,
-      tokensUsed: { input: 0, output: 0, total: 0, model: 'booking-handler' },
-      shouldEscalate: false
-    }
-  }
-
-  /**
-   * Save a booking flow response with token usage (for tool-based flow)
-   */
-  private async saveBookingResponseWithUsage(
-    contact: ContactWithWorkflow,
-    context: ConversationContext,
-    bookingResult: {
-      message: string
-      bookingState: BookingState
-      appointmentCreated: boolean
-      appointmentRescheduled?: boolean
-      appointmentId?: string
-    },
-    userMessage: string,
-    usage: { input: number; output: number; total: number; model: string }
-  ): Promise<ProcessMessageResult> {
-    const supabase = await createClient()
-    const aiCost = estimateCost(usage)
-
-    // Save the booking response message with proper token tracking
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (supabase as any).from('messages').insert({
       contact_id: contact.id,
@@ -694,6 +786,7 @@ export class ConversationOrchestrator {
       last_message_at: new Date().toISOString()
     }
 
+    // Contact becomes booked after new booking (stays booked after reschedule)
     if (bookingResult.appointmentCreated) {
       updateData.status = 'booked'
     }
@@ -704,7 +797,7 @@ export class ConversationOrchestrator {
       .update(updateData)
       .eq('id', contact.id)
 
-    // Determine status update
+    // Determine status update for return value
     let statusUpdate: { newStatus: Contact['status']; reason: string } | undefined
     if (bookingResult.appointmentCreated) {
       statusUpdate = { newStatus: 'booked', reason: 'Appointment booked' }

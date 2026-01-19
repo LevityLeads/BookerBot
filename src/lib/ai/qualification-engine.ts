@@ -215,6 +215,90 @@ Assess each criterion and extract relevant information.`
       extractedInfo: result.extractedInfo || {}
     }
   }
+
+  /**
+   * Check if a disqualified contact should be given another chance.
+   * Returns true if circumstances suggest re-assessment is warranted.
+   *
+   * Conditions for recovery:
+   * 1. Enough time has passed (7+ days since disqualification)
+   * 2. New message contains language suggesting circumstances changed
+   * 3. Contact explicitly mentions they now meet previously-missed criteria
+   */
+  shouldAllowRequalification(
+    context: ConversationContext,
+    latestMessage: string,
+    lastMessageAt: string | null
+  ): { allow: boolean; resetCriteria: string[] } {
+    // Only applies to disqualified contacts
+    if (context.qualification.status !== 'disqualified') {
+      return { allow: false, resetCriteria: [] }
+    }
+
+    // Check for time-based recovery (7+ days since last message)
+    const daysSinceLastMessage = lastMessageAt
+      ? (Date.now() - new Date(lastMessageAt).getTime()) / (1000 * 60 * 60 * 24)
+      : 0
+
+    const timeBasedRecovery = daysSinceLastMessage >= 7
+
+    // Check for language suggesting changed circumstances
+    const changeIndicators = [
+      /things?\s+(have\s+)?changed/i,
+      /situation\s+(is\s+)?different/i,
+      /actually\s+(now|i\s+do|i\s+can|i\s+am)/i,
+      /reconsidered/i,
+      /changed\s+my\s+mind/i,
+      /can\s+now/i,
+      /now\s+(i|we)\s+(have|can|am|are)/i,
+      /update[d]?\s+(on\s+)?my/i,
+      /new\s+(budget|timeline|situation)/i,
+      /got\s+(approval|budget|the\s+go-ahead)/i,
+      /able\s+to\s+(proceed|move\s+forward)/i
+    ]
+
+    const messageBasedRecovery = changeIndicators.some(pattern =>
+      pattern.test(latestMessage)
+    )
+
+    if (timeBasedRecovery || messageBasedRecovery) {
+      // Reset all missed criteria to unknown for re-assessment
+      return {
+        allow: true,
+        resetCriteria: [...context.qualification.criteriaMissed]
+      }
+    }
+
+    return { allow: false, resetCriteria: [] }
+  }
+
+  /**
+   * Reset specific criteria from missed to unknown state
+   * Called when re-qualification is allowed
+   */
+  resetCriteriaForReassessment(
+    context: ConversationContext,
+    criteriaToReset: string[]
+  ): ConversationContext {
+    const newMissed = context.qualification.criteriaMissed.filter(
+      c => !criteriaToReset.includes(c)
+    )
+    const newUnknown = [
+      ...context.qualification.criteriaUnknown,
+      ...criteriaToReset
+    ].filter((v, i, a) => a.indexOf(v) === i)
+
+    return {
+      ...context,
+      qualification: {
+        ...context.qualification,
+        // Revert to partial or unknown status to allow re-qualification
+        status: context.qualification.criteriaMatched.length > 0 ? 'partial' : 'unknown',
+        criteriaMissed: newMissed,
+        criteriaUnknown: newUnknown
+      }
+    }
+  }
 }
 
 // Export singleton instance

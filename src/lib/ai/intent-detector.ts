@@ -1,22 +1,6 @@
 import { Intent, IntentClassification, ConversationContext } from '@/types/ai'
 import { classifyIntent as classifyWithClaude } from './client'
-
-// Keywords for fast-path detection
-const OPT_OUT_KEYWORDS = [
-  'stop',
-  'unsubscribe',
-  'remove me',
-  'opt out',
-  'opt-out',
-  'dont contact',
-  "don't contact",
-  'leave me alone',
-  'remove my number',
-  'take me off',
-  'no more messages',
-  'stop texting',
-  'stop messaging'
-]
+import { isOptOutMessage } from '@/lib/constants/opt-out'
 
 const HUMAN_REQUEST_KEYWORDS = [
   'speak to someone',
@@ -149,8 +133,8 @@ export class IntentDetector {
   }
 
   private fastPathDetection(normalized: string): IntentClassification | null {
-    // Check opt-out (highest priority)
-    if (this.matchesKeywords(normalized, OPT_OUT_KEYWORDS)) {
+    // Check opt-out (highest priority) - using centralized opt-out detection
+    if (isOptOutMessage(normalized)) {
       return {
         intent: 'opt_out',
         confidence: 1.0,

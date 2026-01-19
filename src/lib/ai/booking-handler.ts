@@ -1112,17 +1112,27 @@ class BookingHandler {
     try {
       const businessHours = (client.business_hours as BusinessHours) || DEFAULT_BUSINESS_HOURS
 
-      const slots = await getAvailableSlots({
+      const rawSlots = await getAvailableSlots({
         provider: connection.provider,
         calendarId: connection.connection.calendar_id || 'primary',
         businessHours,
         timezone: client.timezone || 'Europe/London',
         durationMinutes: contact.workflows.appointment_duration_minutes || 30,
         daysAhead: 14,
-        maxSlots: 6,
+        maxSlots: 8, // Fetch a few extra to account for filtering
       })
 
-      console.log('[BookingHandler] Available slots for reschedule:', slots.length)
+      // Filter out the existing appointment's time slot
+      // This prevents offering the user their current time as a "new" option
+      // which could happen if the calendar event wasn't created properly
+      const existingStartTime = new Date(existingAppointment.start_time).getTime()
+      const slots = rawSlots.filter(slot => {
+        const slotTime = slot.start.getTime()
+        // Allow a 5-minute window to handle minor timing differences
+        return Math.abs(slotTime - existingStartTime) > 5 * 60 * 1000
+      }).slice(0, 6) // Take the first 6 after filtering
+
+      console.log('[BookingHandler] Available slots for reschedule:', slots.length, '(excluded existing:', existingAppointment.start_time, ')')
 
       if (slots.length === 0) {
         return {
