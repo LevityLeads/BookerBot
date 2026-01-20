@@ -8,13 +8,13 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { sendOutboundMessage } from '@/lib/twilio/message-sender'
-import { generateResponse, estimateCost } from '@/lib/ai/client'
+import { generateResponse } from '@/lib/ai/client'
 import { contextManager } from '@/lib/ai/context-manager'
 import { promptBuilder } from '@/lib/ai/prompt-builder'
 import { isWithinBusinessHours } from './business-hours'
 import { JobResult, JobError, BatchConfig, DEFAULT_BATCH_CONFIG, ProcessingStats } from './types'
 import { Contact, Workflow, Client, Message, BusinessHours, Json } from '@/types/database'
-import { ConversationContext, WorkflowKnowledge, createEmptyKnowledge, createInitialContext } from '@/types/ai'
+import { WorkflowKnowledge } from '@/types/ai'
 
 type FollowUpContact = Contact & {
   workflows: Workflow & {
@@ -118,7 +118,7 @@ export async function processFollowUps(
     // Filter contacts within business hours
     const eligibleContacts: FollowUpContact[] = []
 
-    for (const [clientId, clientContacts] of contactsByClient) {
+    for (const [clientId, clientContacts] of Array.from(contactsByClient.entries())) {
       const client = clientContacts[0].workflows.clients
       const businessHours = client.business_hours as BusinessHours
       const timezone = client.timezone
@@ -238,16 +238,20 @@ async function sendFollowUpMessage(contact: FollowUpContact): Promise<{ success:
   const workflow = contact.workflows
   const client = workflow.clients
   const knowledge: WorkflowKnowledge = {
-    brandName: client.brand_name || client.name,
-    brandDescription: '',
-    brandTone: 'professional',
-    qualificationCriteria: parseQualificationCriteria(workflow.qualification_criteria),
-    objectionHandling: [],
+    companyName: client.brand_name || client.name,
+    brandSummary: '',
+    services: [],
+    targetAudience: '',
+    tone: 'professional',
+    commonObjections: [],
     faqs: [],
-    appointmentInfo: {
-      duration: workflow.appointment_duration_minutes,
-      location: 'To be confirmed',
-    },
+    recentNews: [],
+    qualificationCriteria: parseQualificationCriteria(workflow.qualification_criteria),
+    dos: [],
+    donts: [],
+    goal: 'Book an appointment',
+    researchedAt: '',
+    sourceUrl: '',
   }
 
   // Generate follow-up message using AI
@@ -268,14 +272,20 @@ async function sendFollowUpMessage(contact: FollowUpContact): Promise<{ success:
   })
 
   try {
+    // Build messages array with conversation history and system trigger
+    const messages = [
+      ...formatConversationHistory(recentMessages),
+      { role: 'user' as const, content: '[Generate follow-up message]' }
+    ]
+
     const aiResponse = await generateResponse({
+      model: 'claude-sonnet-4-20250514', // Use faster model for follow-ups
       systemPrompt,
-      conversationHistory: formatConversationHistory(recentMessages),
-      userMessage: '[SYSTEM: Generate follow-up message]',
+      messages,
       maxTokens: workflow.channel === 'whatsapp' ? 250 : 150,
     })
 
-    if (!aiResponse.success || !aiResponse.content) {
+    if (!aiResponse.content) {
       return { success: false, error: 'Failed to generate follow-up message' }
     }
 
@@ -294,11 +304,7 @@ async function sendFollowUpMessage(contact: FollowUpContact): Promise<{ success:
 
     // Update contact: increment follow_ups_sent, set next_follow_up_at, update context
     const updatedContext = contextManager.incrementFollowUps(context)
-    const nextFollowUpAt = calculateNextFollowUpTime(
-      workflow.follow_up_delay_hours,
-      contact.workflows.clients.business_hours as BusinessHours,
-      contact.workflows.clients.timezone
-    )
+    const nextFollowUpAt = calculateNextFollowUpTime(workflow.follow_up_delay_hours)
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (supabase as any)
@@ -324,17 +330,11 @@ async function sendFollowUpMessage(contact: FollowUpContact): Promise<{ success:
 
 /**
  * Calculate next follow-up time respecting business hours
+ * TODO: Adjust to next business hours start if outside hours
  */
-function calculateNextFollowUpTime(
-  delayHours: number,
-  businessHours: BusinessHours,
-  timezone: string
-): Date | null {
-  const baseTime = new Date(Date.now() + delayHours * 60 * 60 * 1000)
-
-  // For now, return the base time
-  // TODO: Adjust to next business hours start if outside hours
-  return baseTime
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function calculateNextFollowUpTime(delayHours: number): Date | null {
+  return new Date(Date.now() + delayHours * 60 * 60 * 1000)
 }
 
 /**

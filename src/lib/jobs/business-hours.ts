@@ -5,6 +5,7 @@
 
 import { BusinessHours } from '@/types/database'
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const DAYS_OF_WEEK = [
   'sunday',
   'monday',

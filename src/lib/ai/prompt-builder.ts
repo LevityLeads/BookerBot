@@ -405,7 +405,6 @@ Treat it like you're texting a friend to find a time to meet up.`
         return 200
     }
   }
-}
 
   /**
    * Build a prompt specifically for follow-up messages
@@ -423,7 +422,7 @@ Treat it like you're texting a friend to find a time to meet up.`
     const contactName = contact.firstName || 'there'
     const isLastFollowUp = followUpNumber >= maxFollowUps
 
-    let prompt = `You're sending a follow-up message on behalf of ${knowledge.brandName}.
+    const prompt = `You're sending a follow-up message on behalf of ${knowledge.companyName}.
 
 ## SITUATION
 - This is follow-up #${followUpNumber} of ${maxFollowUps}
@@ -431,7 +430,7 @@ Treat it like you're texting a friend to find a time to meet up.`
 - The contact hasn't responded to your previous message${isLastFollowUp ? '\n- This is the LAST follow-up - make it count but don\'t be desperate' : ''}
 
 ## BRAND VOICE
-${knowledge.brandTone}
+${knowledge.tone}
 
 ## CONVERSATION SO FAR
 ${context.summary || 'Initial outreach sent, no response yet.'}

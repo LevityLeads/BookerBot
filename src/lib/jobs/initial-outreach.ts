@@ -106,7 +106,7 @@ export async function processInitialOutreach(
     // Filter contacts within business hours
     const eligibleContacts: PendingContact[] = []
 
-    for (const [clientId, clientContacts] of contactsByClient) {
+    for (const [clientId, clientContacts] of Array.from(contactsByClient.entries())) {
       const client = clientContacts[0].workflows.clients
       const businessHours = client.business_hours as BusinessHours
       const timezone = client.timezone
