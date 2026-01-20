@@ -407,6 +407,66 @@ Treat it like you're texting a friend to find a time to meet up.`
   }
 }
 
+  /**
+   * Build a prompt specifically for follow-up messages
+   */
+  buildFollowUpPrompt(params: {
+    contact: { firstName?: string | null; lastName?: string | null }
+    context: ConversationContext
+    knowledge: WorkflowKnowledge
+    followUpNumber: number
+    maxFollowUps: number
+    lastMessageDays: number
+    channel: 'sms' | 'whatsapp'
+  }): string {
+    const { contact, context, knowledge, followUpNumber, maxFollowUps, lastMessageDays, channel } = params
+    const contactName = contact.firstName || 'there'
+    const isLastFollowUp = followUpNumber >= maxFollowUps
+
+    let prompt = `You're sending a follow-up message on behalf of ${knowledge.brandName}.
+
+## SITUATION
+- This is follow-up #${followUpNumber} of ${maxFollowUps}
+- It's been ${lastMessageDays} day(s) since the last message
+- The contact hasn't responded to your previous message${isLastFollowUp ? '\n- This is the LAST follow-up - make it count but don\'t be desperate' : ''}
+
+## BRAND VOICE
+${knowledge.brandTone}
+
+## CONVERSATION SO FAR
+${context.summary || 'Initial outreach sent, no response yet.'}
+
+## YOUR TASK
+Write a short, natural follow-up message that:
+1. References the previous conversation naturally (if there was one)
+2. Gives them an easy reason to respond
+3. Doesn't guilt-trip them for not responding
+4. Sounds like a real person checking in, not an automated reminder
+
+## CHANNEL: ${channel.toUpperCase()}
+${channel === 'sms' ? 'Keep it to 1-2 SHORT sentences. Very brief.' : 'Keep it brief - 2-3 sentences max.'}
+
+## RULES
+- NO "Just following up..." or "Wanted to touch base..." - everyone uses those
+- NO guilt ("Haven't heard from you...") or pressure
+- DO give them something to respond to (question, value, new angle)
+- DO sound human - like you actually remembered this conversation
+- Address them as "${contactName}" if natural
+
+${isLastFollowUp ? `
+## LAST FOLLOW-UP APPROACH
+Since this is the final follow-up, you can:
+- Be more direct about wanting to help
+- Offer an easy out ("If now's not a good time, no worries")
+- Make it clear the door is open without being pushy
+` : ''}
+
+Generate ONLY the message text - no explanations, quotes, or meta-commentary.`
+
+    return prompt
+  }
+}
+
 // Build initial outreach message using template
 export function buildInitialMessage(
   template: string,

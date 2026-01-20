@@ -241,6 +241,7 @@ TWILIO_ACCOUNT_SID=
 TWILIO_AUTH_TOKEN=
 TWILIO_PHONE_NUMBER=
 NEXT_PUBLIC_APP_URL=     # For webhook callbacks
+CRON_SECRET=             # Secret for Vercel Cron authentication
 ```
 
 ## Coding Conventions

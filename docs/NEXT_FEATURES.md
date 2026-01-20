@@ -1,8 +1,9 @@
 # Next Features Plan - BookerBot
 
 **Created:** January 2026
+**Updated:** January 2026
 **Author:** Docs & Audit Lead
-**Status:** Ready for Implementation
+**Status:** Phase A Complete - In Progress
 
 ---
 
@@ -17,6 +18,7 @@
 | 3 | AI Conversation Engine | ✅ Complete | Orchestrator, intent, qualification, handoff |
 | 4 | Twilio Integration | ✅ Complete | SMS/WhatsApp, webhooks, status tracking |
 | 5 | Calendar Integration | ✅ Complete | Google OAuth, availability, booking |
+| 6a | Automation Core | ✅ Complete | Jobs infrastructure, cron endpoints |
 
 ### Partially Complete ⚠️
 
@@ -25,13 +27,14 @@
 | Dashboard | Basic stats cards | Real analytics (placeholders show "--%" for rates) |
 | Appointments | List view with stats | Calendar view, status management UI, filtering |
 | Recent Activity | Placeholder UI | Real activity feed from messages table |
+| Automation | Jobs + cron | Workflow pause/resume UI |
 
 ### Not Started ❌
 
 | Feature | Priority | Complexity |
 |---------|----------|------------|
-| Automation & Scheduling | **HIGH** | High |
 | Real Analytics | **HIGH** | Medium |
+| CRM Foundations | **HIGH** | Medium |
 | Production Hardening | **MEDIUM** | Medium |
 | Email Channel (Resend) | LOW | Medium |
 
@@ -193,7 +196,85 @@ interface AnalyticsResponse {
 
 ---
 
-## Priority 4: Production Hardening
+## Priority 4: CRM Foundations (Scale for Thousands of Contacts)
+
+**Why:** Clients will upload thousands of contacts. Current system has API pagination but UI is limited to 100 contacts with no pagination controls.
+
+### 4.1 Current State
+
+| Feature | API | UI | Notes |
+|---------|-----|-----|-------|
+| Pagination | ✅ `limit`/`offset` | ❌ Hardcoded 100 | No next/prev buttons |
+| Search | ✅ Name/phone/email | ✅ Works | No date/custom field search |
+| Filtering | ✅ Status/workflow | ✅ Works | No date range filters |
+| Bulk Operations | ✅ Delete | ⚠️ Delete only | No bulk status change |
+| DB Indexes | ✅ Good | N/A | status, workflow_id, next_follow_up_at |
+
+### 4.2 UI Pagination
+
+**Add to contacts page:**
+- Page number display ("Page 1 of 50")
+- Next/Previous buttons
+- Page size selector (25, 50, 100, 250)
+- Total count display
+
+**Implementation:**
+```typescript
+// URL params: ?page=1&pageSize=50
+const offset = (page - 1) * pageSize
+```
+
+### 4.3 Advanced Filtering
+
+**Add filters for:**
+- Date range (created, last message)
+- Custom field values (from JSONB)
+- Days since last contact
+- Follow-up count
+
+### 4.4 Bulk Status Operations
+
+**Add bulk actions for:**
+- Change status (pending → contacted, etc.)
+- Assign to different workflow
+- Export selected to CSV
+- Trigger manual outreach
+
+### 4.5 Contact Tags (Future)
+
+**Schema addition:**
+```sql
+CREATE TABLE contact_tags (
+  id UUID PRIMARY KEY,
+  workflow_id UUID REFERENCES workflows(id),
+  name TEXT NOT NULL,
+  color TEXT
+);
+
+CREATE TABLE contact_tag_assignments (
+  contact_id UUID REFERENCES contacts(id),
+  tag_id UUID REFERENCES contact_tags(id),
+  PRIMARY KEY (contact_id, tag_id)
+);
+```
+
+**Use cases:**
+- Segment by source ("Website", "Trade Show", "Referral")
+- Mark priority levels
+- Custom groupings for reporting
+
+### 4.6 Performance Considerations
+
+For 10,000+ contacts per client:
+- ✅ Database indexes already in place
+- ✅ Pagination at API level exists
+- Need: Virtualized table for UI (react-virtual or similar)
+- Need: Batch processing in automation jobs (already implemented)
+- Consider: Read replicas if DB load increases
+
+---
+
+## Priority 5: Production Hardening
 
 ### 4.1 Error Boundaries
 
@@ -231,12 +312,24 @@ interface AnalyticsResponse {
 
 Based on business value and dependencies:
 
-### Phase A: Automation Core (Sprint 6a)
-1. Create job infrastructure (`src/lib/jobs/`)
-2. Implement initial outreach job
-3. Implement follow-up job
-4. Add Vercel cron endpoints
-5. Add workflow pause/resume UI
+### Phase A: Automation Core (Sprint 6a) ✅ COMPLETE
+1. ✅ Create job infrastructure (`src/lib/jobs/`)
+2. ✅ Implement initial outreach job with batching
+3. ✅ Implement follow-up job with AI generation
+4. ✅ Add Vercel cron endpoints
+5. ⏳ Add workflow pause/resume UI (pending)
+
+**New files created:**
+- `src/lib/jobs/types.ts` - Job types and batch config
+- `src/lib/jobs/business-hours.ts` - Business hours checker
+- `src/lib/jobs/initial-outreach.ts` - Process pending contacts
+- `src/lib/jobs/follow-up.ts` - Process follow-ups with AI
+- `src/app/api/cron/process-outreach/route.ts` - Vercel cron
+- `src/app/api/cron/process-followups/route.ts` - Vercel cron
+- `vercel.json` - Cron schedule configuration
+
+**Environment variable needed:**
+- `CRON_SECRET` - Secret for authenticating cron requests
 
 ### Phase B: Analytics (Sprint 6b)
 1. Create `/api/analytics` endpoint
@@ -244,12 +337,18 @@ Based on business value and dependencies:
 3. Add recent activity feed
 4. Add token/cost tracking display
 
-### Phase C: Appointments Polish (Sprint 6c)
+### Phase C: CRM Foundations (Sprint 6c)
+1. Add UI pagination to contacts page
+2. Add date range filters
+3. Add bulk status operations
+4. (Optional) Contact tags schema
+
+### Phase D: Appointments Polish (Sprint 6d)
 1. Add status management UI
 2. Add appointment filtering
 3. (Optional) Calendar view
 
-### Phase D: Hardening (Sprint 7)
+### Phase E: Hardening (Sprint 7)
 1. Add rate limiting
 2. Add error boundaries
 3. Re-enable authentication
