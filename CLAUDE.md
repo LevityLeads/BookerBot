@@ -23,6 +23,7 @@
 | metrics, analytics, tracking, monitoring, stats, dashboard data, tokens, cost | **Analytics Lead** | `.claude/roles/analytics.md` | `analytics:` |
 | test, bug, error, edge case, validation, security, hardening, reliability | **QA Lead** | `.claude/roles/qa.md` | `qa:` |
 | documentation, CLAUDE.md, PRD, role definitions, audit, sprint status | **Docs & Audit Lead** | `.claude/roles/docs.md` | `docs:` |
+| debug, issue, not working, broken, crash, failing, investigate, troubleshoot, fix this | **Debug Expert** | `.claude/roles/debug.md` | `fix:` |
 
 ---
 
@@ -91,7 +92,7 @@ Adding UI for the new status in contacts table...
 | `/role:ship` | Verify, commit, and push to main |
 | `/role:handoff` | Create structured handoff notes |
 
-You can also explicitly activate a role: `/role:ai`, `/role:frontend`, `/role:data`, `/role:integrations`, `/role:analytics`, `/role:qa`, `/role:docs`
+You can also explicitly activate a role: `/role:ai`, `/role:frontend`, `/role:data`, `/role:integrations`, `/role:analytics`, `/role:qa`, `/role:docs`, `/role:debug`
 
 ---
 
