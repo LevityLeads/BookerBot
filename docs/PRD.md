@@ -326,105 +326,106 @@ appointments
 
 ---
 
-### Sprint 3: Twilio Integration & Messaging
+### Sprint 3: Twilio Integration & Messaging (COMPLETED)
 **Goal:** Send and receive SMS/WhatsApp messages
 
 **Deliverables:**
-- [ ] Twilio configuration
-  - [ ] Environment variables setup
-  - [ ] Twilio client wrapper
-  - [ ] Phone number validation utilities
-- [ ] Outbound messaging
-  - [ ] Send SMS function
-  - [ ] Send WhatsApp function
-  - [ ] Message queue/retry logic
-  - [ ] Delivery status webhook handler
-- [ ] Inbound messaging
-  - [ ] Twilio webhook endpoint (/api/webhooks/twilio)
-  - [ ] Message parsing and storage
-  - [ ] Contact lookup/creation
-- [ ] Message management UI
-  - [ ] Conversation thread view
-  - [ ] Message status indicators
-  - [ ] Manual message sending (admin override)
+- [x] Twilio configuration
+  - [x] Environment variables setup
+  - [x] Twilio client wrapper (`src/lib/twilio/client.ts`)
+  - [x] Phone number validation utilities
+- [x] Outbound messaging
+  - [x] Send SMS function (`src/lib/twilio/message-sender.ts`)
+  - [x] Send WhatsApp function
+  - [x] Message queue/retry logic
+  - [x] Delivery status webhook handler (`/api/webhooks/twilio/status`)
+- [x] Inbound messaging
+  - [x] Twilio webhook endpoint (`/api/webhooks/twilio/inbound`)
+  - [x] Message parsing and storage
+  - [x] Contact lookup/creation
+- [x] Message management UI
+  - [x] Conversation thread view (contact detail page)
+  - [x] Message status indicators
+  - [x] Manual message sending (outreach endpoints)
 
 ---
 
-### Sprint 4: AI Conversation Engine
+### Sprint 4: AI Conversation Engine (COMPLETED)
 **Goal:** Claude-powered natural language conversations
 
 **Deliverables:**
-- [ ] Claude API integration
-  - [ ] Anthropic SDK setup
-  - [ ] Prompt engineering utilities
-  - [ ] Token usage tracking
-- [ ] Conversation orchestrator
-  - [ ] Build context from conversation history
-  - [ ] Inject workflow instructions
-  - [ ] Generate appropriate responses
-  - [ ] Detect intent (booking, opt-out, question, objection)
-- [ ] Qualification engine
-  - [ ] Parse qualification criteria from workflow
-  - [ ] Assess qualification from conversation
-  - [ ] Update contact status accordingly
-- [ ] Human handoff
-  - [ ] Detect escalation triggers
-  - [ ] Send SMS notification to admin
-  - [ ] Mark contact as handed_off
-- [ ] Testing harness
-  - [ ] Conversation simulator
-  - [ ] Prompt iteration tools
+- [x] Claude API integration
+  - [x] Anthropic SDK setup (`src/lib/ai/client.ts`)
+  - [x] Prompt engineering utilities (`src/lib/ai/prompt-builder.ts`)
+  - [x] Token usage tracking (tokens_used, ai_cost in messages)
+- [x] Conversation orchestrator
+  - [x] Build context from conversation history (`src/lib/ai/context-manager.ts`)
+  - [x] Inject workflow instructions
+  - [x] Generate appropriate responses (`src/lib/ai/orchestrator.ts`)
+  - [x] Detect intent (`src/lib/ai/intent-detector.ts`)
+- [x] Qualification engine
+  - [x] Parse qualification criteria from workflow
+  - [x] Assess qualification from conversation (`src/lib/ai/qualification-engine.ts`)
+  - [x] Update contact status accordingly
+- [x] Human handoff
+  - [x] Detect escalation triggers
+  - [x] Send SMS notification to admin (`src/lib/ai/handoff-handler.ts`)
+  - [x] Mark contact as handed_off
+- [x] Testing harness
+  - [x] AI Playground page (`/ai-playground`)
+  - [x] Test API endpoint (`/api/ai/test`)
 
 ---
 
-### Sprint 5: Google Calendar Integration
+### Sprint 5: Google Calendar Integration (COMPLETED)
 **Goal:** Check availability and book appointments
 
 **Deliverables:**
-- [ ] Google OAuth flow
-  - [ ] OAuth consent screen setup
-  - [ ] Authorization endpoint
-  - [ ] Token exchange and storage
-  - [ ] Token refresh logic
-- [ ] Calendar API wrapper
-  - [ ] List calendars
-  - [ ] Get free/busy information
-  - [ ] Create calendar event
-  - [ ] Update/cancel event
-- [ ] Availability engine
-  - [ ] Merge calendar busy times with business hours
-  - [ ] Generate available slots
-  - [ ] Format slots for AI conversation
-- [ ] Booking flow
-  - [ ] AI proposes available times
-  - [ ] Parse user time selection
-  - [ ] Confirm and create appointment
-  - [ ] Send confirmation message
-- [ ] Calendar connection UI
-  - [ ] Connect Google Calendar button
-  - [ ] View connected calendars
-  - [ ] Disconnect/reconnect
+- [x] Google OAuth flow
+  - [x] OAuth consent screen setup
+  - [x] Authorization endpoint (`/api/auth/google`)
+  - [x] Token exchange and storage (`/api/auth/google/callback`)
+  - [x] Token refresh logic
+- [x] Calendar API wrapper
+  - [x] List calendars (`src/lib/calendar/providers/google.ts`)
+  - [x] Get free/busy information
+  - [x] Create calendar event
+  - [x] Update/cancel event
+- [x] Availability engine
+  - [x] Merge calendar busy times with business hours (`src/lib/calendar/availability.ts`)
+  - [x] Generate available slots
+  - [x] Format slots for AI conversation
+- [x] Booking flow
+  - [x] AI proposes available times (`src/lib/ai/booking-handler.ts`)
+  - [x] Parse user time selection
+  - [x] Confirm and create appointment
+  - [x] Send confirmation message
+- [x] Calendar connection UI
+  - [x] Connect Google Calendar button (`/connect/calendar/[clientId]`)
+  - [x] View connected calendars
+  - [x] Disconnect/reconnect
 
 ---
 
-### Sprint 6: Automation & Scheduling
+### Sprint 6: Automation & Scheduling (IN PROGRESS)
 **Goal:** Automated outreach and follow-ups
 
 **Deliverables:**
 - [ ] Job scheduler setup
-  - [ ] Cron job infrastructure (Vercel Cron or external)
-  - [ ] Job queue for reliability
+  - [ ] Cron job infrastructure (Vercel Cron)
+  - [ ] Job runner module (`src/lib/jobs/`)
 - [ ] Initial outreach automation
   - [ ] Process pending contacts
+  - [ ] Respect business hours and timezone
   - [ ] Send initial messages
-  - [ ] Update contact status
+  - [ ] Update contact status to contacted
 - [ ] Follow-up automation
   - [ ] Check for contacts needing follow-up
   - [ ] Respect follow-up delay settings
-  - [ ] Respect business hours and timezone
   - [ ] Generate and send follow-up messages
+  - [ ] Mark unresponsive after max follow-ups
 - [ ] Workflow status controls
-  - [ ] Pause/resume workflow
+  - [ ] Pause/resume workflow toggle UI
   - [ ] Archive workflow (stop all activity)
 - [ ] Monitoring
   - [ ] Job execution logs
@@ -432,28 +433,48 @@ appointments
 
 ---
 
-### Sprint 7: Analytics & Polish
-**Goal:** Insights and production readiness
+### Sprint 7: Analytics & Dashboard (PLANNED)
+**Goal:** Real analytics and improved dashboard
 
 **Deliverables:**
-- [ ] Analytics dashboard
-  - [ ] Conversion funnel visualization
+- [ ] Analytics API
+  - [ ] `/api/analytics` endpoint
+  - [ ] Conversion funnel calculations
   - [ ] Response rate metrics
-  - [ ] Appointment booking trends
+  - [ ] Token/cost aggregation
+- [ ] Dashboard updates
+  - [ ] Replace placeholder stats with real data
+  - [ ] Add real recent activity feed
   - [ ] Per-workflow performance comparison
-- [ ] Appointments UI
-  - [ ] Appointments list page
-  - [ ] Calendar view
-  - [ ] Status management (completed, no-show)
-- [ ] Production hardening
-  - [ ] Error boundaries and graceful degradation
-  - [ ] Rate limiting
-  - [ ] Input sanitization audit
-  - [ ] Performance optimization
-- [ ] Re-enable authentication
-  - [ ] Proper auth flows
+  - [ ] AI cost tracking display
+- [ ] Appointments UI improvements
+  - [x] Appointments list page (basic - completed)
+  - [ ] Status management dropdown (completed, no-show, cancel)
+  - [ ] Appointment filtering (status, client, date range)
+  - [ ] Calendar view (optional)
+
+---
+
+### Sprint 8: Production Hardening (PLANNED)
+**Goal:** Security and reliability for production
+
+**Deliverables:**
+- [ ] Error handling
+  - [ ] React error boundaries
+  - [ ] Graceful API error responses
+  - [ ] User-friendly error messages
+- [ ] Rate limiting
+  - [ ] Protect webhook endpoints
+  - [ ] Protect AI endpoints
+  - [ ] Use Upstash or Vercel rate limiting
+- [ ] Input validation
+  - [ ] Zod schemas for all API inputs
+  - [ ] Phone number sanitization
+  - [ ] Content sanitization
+- [ ] Authentication
+  - [ ] Re-enable Supabase auth checks
+  - [ ] Protect all API routes
   - [ ] Session management
-  - [ ] Protected routes
 
 ---
 

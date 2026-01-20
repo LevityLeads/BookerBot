@@ -339,7 +339,11 @@ import { Dialog, DialogContent, DialogHeader } from '@/components/ui/dialog'
 
 - [x] Sprint 1: Foundation (Next.js, Supabase, Auth)
 - [x] Sprint 2: Contact Management (CRUD, CSV import)
-- [x] Sprint 3: AI Conversation Engine
-- [x] Sprint 4: Twilio SMS/WhatsApp Integration
+- [x] Sprint 3: Twilio SMS/WhatsApp Integration
+- [x] Sprint 4: AI Conversation Engine
 - [x] Sprint 5: Calendar Integration (Google Calendar)
-- [ ] Sprint 6: Dashboard & Analytics
+- [ ] Sprint 6: Automation & Scheduling ← **CURRENT**
+- [ ] Sprint 7: Analytics & Dashboard
+- [ ] Sprint 8: Production Hardening
+
+**Next Features Plan:** See `docs/NEXT_FEATURES.md` for detailed implementation plan.
