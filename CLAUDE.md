@@ -137,6 +137,102 @@ When multiple Claude sessions work simultaneously:
 
 ---
 
+### Parallel Agents (Optional)
+
+When tasks are large enough to benefit from parallelism, split work by role.
+
+#### When to Use Parallel Agents
+- Task touches 3+ distinct areas (e.g., AI + API + UI)
+- Multiple independent fixes/features requested at once
+- Time-sensitive work that benefits from speed
+
+#### When NOT to Use
+- Single focused task
+- Tasks with dependencies (one needs the other's output)
+- Token-constrained situations
+
+#### Basic Parallel Pattern
+```bash
+# Independent tasks run simultaneously
+& [AI Architect] Add reschedule intent detection
+& [Frontend Lead] Add reschedule badge to contacts table
+& [Data Architect] Add reschedule status to API
+```
+
+Each agent commits with its role prefix. After all complete, push to main.
+
+---
+
+### Reviewer Workflow (For Large/Crucial Changes)
+
+**Trigger reviewer when:**
+- Parallel work touched 5+ files
+- Security-sensitive code (auth, payments, API keys, webhooks)
+- Database schema changes
+- Core AI engine modifications
+- You won't have time to review carefully yourself
+
+#### Workflow: Code → Review → Fix → Commit
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ STEP 1: Parallel Coders                                 │
+└─────────────────────────────────────────────────────────┘
+& [AI Architect] Implement new qualification logic
+& [Data Architect] Add qualification_score to contacts table
+& [Frontend Lead] Add qualification display to dashboard
+
+    ↓ (all coders complete, changes uncommitted)
+
+┌─────────────────────────────────────────────────────────┐
+│ STEP 2: QA Lead Reviews                                 │
+└─────────────────────────────────────────────────────────┘
+& [QA Lead] Review all staged changes for:
+  - Bugs and logic errors
+  - Security vulnerabilities
+  - Type errors
+  - Conflicts between parallel changes
+  - Missing error handling
+
+    ↓ (issues found)
+
+┌─────────────────────────────────────────────────────────┐
+│ STEP 3: Auto-Fix Issues                                 │
+└─────────────────────────────────────────────────────────┘
+QA Lead automatically fixes found issues:
+  - Bug fixes
+  - Security patches
+  - Type corrections
+  - Consistency fixes
+
+    ↓ (all issues resolved)
+
+┌─────────────────────────────────────────────────────────┐
+│ STEP 4: Verify & Commit                                 │
+└─────────────────────────────────────────────────────────┘
+npm run lint && npm run build
+git add -A
+git commit -m "feat: [description] (reviewed)"
+git pull --rebase origin main
+git push origin main
+```
+
+#### Reviewer Checklist
+- [ ] No obvious bugs or logic errors
+- [ ] No security vulnerabilities (OWASP top 10)
+- [ ] Consistent with existing codebase patterns
+- [ ] Types are correct and complete
+- [ ] No conflicts between parallel changes
+- [ ] Error handling is adequate
+- [ ] No hardcoded secrets or credentials
+
+#### Skip Reviewer When
+- Small, focused single-role tasks
+- You're actively watching and reviewing yourself
+- Non-code changes (docs, comments only)
+
+---
+
 ## What is BookerBot?
 
 An AI-powered appointment booking system that automates lead qualification and scheduling via SMS/WhatsApp. The AI has natural conversations with contacts, qualifies them against criteria, and books appointments - all without human intervention.
