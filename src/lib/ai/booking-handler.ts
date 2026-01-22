@@ -1662,9 +1662,28 @@ class BookingHandler {
 
     console.log(`[BookingHandler] Creating booking from tool selection:`, {
       contactId: contact.id,
+      contactEmail: contact.email || 'NO EMAIL',
       slotFormatted: slot.formatted,
       isRescheduling,
     })
+
+    // Check if contact has email - required for calendar invite
+    if (!contact.email) {
+      console.log('[BookingHandler] No email on contact - asking for email before booking (tool flow)', {
+        contactId: contact.id,
+        selectedSlot: slot.formatted,
+      })
+      return {
+        message: `Perfect, ${firstName}! ${slot.formatted} works great. Just need your email to send over the calendar invite - what's the best one to use?`,
+        bookingState: {
+          ...bookingState,
+          pendingSlotAwaitingEmail: slot,
+        },
+        appointmentCreated: false,
+        appointmentRescheduled: false,
+        continueWithAI: false,
+      }
+    }
 
     try {
       const appointment = await this.createAppointment(
