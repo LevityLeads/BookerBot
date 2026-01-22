@@ -86,6 +86,7 @@ ${channelConstraints}
 
 ## CONTACT YOU'RE SPEAKING WITH
 Name: ${contactName}${contact.last_name ? ' ' + contact.last_name : ''}
+${this.buildContactContext(contact)}
 `
 
     // Add qualification section if criteria exist
@@ -210,10 +211,11 @@ ${knowledge.donts.map(d => `- ${d}`).join('\n')}
 ## IMPORTANT RULES
 1. USE YOUR OFFER DESCRIPTION - you have it, it's above. When they ask what you do, explain it from "WHAT YOU'RE SELLING"
 2. NEVER ask "what kind of business are you in?" or "what industry are you in?" - YOU ALREADY KNOW who you're reaching out to. You have their info. Asking makes you look like spam.
-3. If they want to opt out (STOP, unsubscribe, etc.) - acknowledge politely and confirm removal
-4. If they ask for pricing/specifics beyond your offer description - offer to have someone call them with details
-5. If they explicitly ask for a human/person - acknowledge and say someone will reach out
-6. Never be pushy or aggressive about booking - let the conversation flow naturally
+3. USE THEIR EMAIL TO KNOW THEIR COMPANY - if they have a work email (not gmail/yahoo/etc), you can see their company from the domain. Don't ask "what company are you with?" if you can tell from john@acme.com that they work at Acme.
+4. If they want to opt out (STOP, unsubscribe, etc.) - acknowledge politely and confirm removal
+5. If they ask for pricing/specifics beyond your offer description - offer to have someone call them with details
+6. If they explicitly ask for a human/person - acknowledge and say someone will reach out
+7. Never be pushy or aggressive about booking - let the conversation flow naturally
 
 ## SOUND HUMAN, NOT LIKE AI
 Avoid these robotic AI patterns:
@@ -355,6 +357,60 @@ Treat it like you're texting a friend to find a time to meet up.`
     }
 
     return status
+  }
+
+  private buildContactContext(contact: Contact): string {
+    const details: string[] = []
+
+    // Extract company from email domain if available
+    if (contact.email) {
+      const domain = this.extractCompanyFromEmail(contact.email)
+      if (domain) {
+        details.push(`Company (from email): ${domain}`)
+      }
+    }
+
+    // Add phone if available
+    if (contact.phone) {
+      details.push(`Phone: ${contact.phone}`)
+    }
+
+    // Add any custom fields that might be relevant
+    if (contact.custom_fields && typeof contact.custom_fields === 'object') {
+      const fields = contact.custom_fields as Record<string, unknown>
+      if (fields.company) details.push(`Company: ${fields.company}`)
+      if (fields.role) details.push(`Role: ${fields.role}`)
+      if (fields.title) details.push(`Title: ${fields.title}`)
+    }
+
+    if (details.length === 0) return ''
+
+    return `${details.join('\n')}
+
+You have this info already - USE IT. Don't ask questions you can answer from their email/data.`
+  }
+
+  private extractCompanyFromEmail(email: string): string | null {
+    const domain = email.split('@')[1]?.toLowerCase()
+    if (!domain) return null
+
+    // Ignore common personal email providers
+    const personalDomains = [
+      'gmail.com', 'googlemail.com', 'yahoo.com', 'yahoo.co.uk',
+      'hotmail.com', 'hotmail.co.uk', 'outlook.com', 'live.com',
+      'icloud.com', 'me.com', 'mac.com', 'aol.com', 'protonmail.com',
+      'proton.me', 'mail.com', 'zoho.com', 'ymail.com'
+    ]
+
+    if (personalDomains.includes(domain)) return null
+
+    // Extract company name from domain
+    // e.g., "acme.com" -> "Acme", "sales-force.io" -> "Sales Force"
+    const companyPart = domain.split('.')[0]
+    return companyPart
+      .split(/[-_]/)
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ')
   }
 
   private getChannelConstraints(channel: 'sms' | 'whatsapp' | 'email'): string {
