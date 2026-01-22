@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Plus, Upload, Loader2, Search, X } from 'lucide-react'
+import { Plus, Upload, Loader2, Search, X, ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
 import { Contact, Workflow, Client } from '@/types/database'
 
 type ContactWithWorkflow = Contact & {
@@ -35,6 +35,8 @@ const STATUSES = [
   { value: 'handed_off', label: 'Handed Off' },
 ]
 
+const PAGE_SIZES = [25, 50, 100, 250]
+
 export function ContactsPageContent() {
   const { selectedClientId, selectedClient, isLoading: clientLoading } = useClientContext()
   const searchParams = useSearchParams()
@@ -50,6 +52,15 @@ export function ContactsPageContent() {
   const selectedWorkflow = searchParams.get('workflow') || ''
   const selectedStatus = searchParams.get('status') || ''
   const searchQuery = searchParams.get('search') || ''
+  const createdAfter = searchParams.get('created_after') || ''
+  const createdBefore = searchParams.get('created_before') || ''
+  const lastMessageAfter = searchParams.get('last_message_after') || ''
+  const lastMessageBefore = searchParams.get('last_message_before') || ''
+
+  // Pagination
+  const page = parseInt(searchParams.get('page') || '1')
+  const pageSize = parseInt(searchParams.get('pageSize') || '50')
+  const totalPages = Math.ceil(total / pageSize)
 
   const createQueryString = useCallback(
     (updates: Record<string, string | null>) => {
@@ -67,7 +78,21 @@ export function ContactsPageContent() {
   )
 
   const updateFilter = (key: string, value: string | null) => {
-    const queryString = createQueryString({ [key]: value })
+    // Reset to page 1 when filters change
+    const updates: Record<string, string | null> = { [key]: value }
+    if (key !== 'page' && key !== 'pageSize') {
+      updates.page = '1'
+    }
+    const queryString = createQueryString(updates)
+    router.push(pathname + (queryString ? `?${queryString}` : ''))
+  }
+
+  const updateMultipleFilters = (updates: Record<string, string | null>) => {
+    // Reset to page 1 when filters change
+    if (!('page' in updates)) {
+      updates.page = '1'
+    }
+    const queryString = createQueryString(updates)
     router.push(pathname + (queryString ? `?${queryString}` : ''))
   }
 
@@ -111,9 +136,16 @@ export function ContactsPageContent() {
       try {
         const params = new URLSearchParams()
         params.set('client_id', selectedClientId)
+        params.set('limit', pageSize.toString())
+        params.set('offset', ((page - 1) * pageSize).toString())
+
         if (selectedWorkflow) params.set('workflow_id', selectedWorkflow)
         if (selectedStatus) params.set('status', selectedStatus)
         if (searchQuery) params.set('search', searchQuery)
+        if (createdAfter) params.set('created_after', createdAfter)
+        if (createdBefore) params.set('created_before', createdBefore)
+        if (lastMessageAfter) params.set('last_message_after', lastMessageAfter)
+        if (lastMessageBefore) params.set('last_message_before', lastMessageBefore)
 
         const response = await fetch(`/api/contacts?${params.toString()}`)
         if (response.ok) {
@@ -129,9 +161,14 @@ export function ContactsPageContent() {
     }
 
     fetchContacts()
-  }, [selectedClientId, selectedWorkflow, selectedStatus, searchQuery])
+  }, [selectedClientId, selectedWorkflow, selectedStatus, searchQuery, page, pageSize, createdAfter, createdBefore, lastMessageAfter, lastMessageBefore])
 
-  const hasFilters = selectedWorkflow || selectedStatus || searchQuery
+  const hasFilters = selectedWorkflow || selectedStatus || searchQuery || createdAfter || createdBefore || lastMessageAfter || lastMessageBefore
+  const hasDateFilters = createdAfter || createdBefore || lastMessageAfter || lastMessageBefore
+
+  // Calculate displayed range
+  const startItem = total === 0 ? 0 : (page - 1) * pageSize + 1
+  const endItem = Math.min(page * pageSize, total)
 
   if (clientLoading) {
     return (
@@ -159,7 +196,7 @@ export function ContactsPageContent() {
         <div>
           <h1 className="text-2xl font-bold text-foreground">Contacts</h1>
           <p className="text-muted-foreground">
-            {total > 0 ? `${total} contact${total !== 1 ? 's' : ''} for ${selectedClient?.name}` : `Contacts for ${selectedClient?.name}`}
+            {total > 0 ? `${total.toLocaleString()} contact${total !== 1 ? 's' : ''} for ${selectedClient?.name}` : `Contacts for ${selectedClient?.name}`}
           </p>
         </div>
         <div className="flex gap-2">
@@ -241,6 +278,49 @@ export function ContactsPageContent() {
             </Button>
           )}
         </div>
+
+        {/* Date Range Filters (collapsible) */}
+        <details className="mt-4">
+          <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground flex items-center gap-2">
+            <Calendar className="w-4 h-4" />
+            Date filters
+            {hasDateFilters && <span className="text-cyan-400">(active)</span>}
+          </summary>
+          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+              <label className="text-sm font-medium text-foreground mb-1 block">Created after</label>
+              <Input
+                type="date"
+                value={createdAfter}
+                onChange={(e) => updateFilter('created_after', e.target.value || null)}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-foreground mb-1 block">Created before</label>
+              <Input
+                type="date"
+                value={createdBefore}
+                onChange={(e) => updateFilter('created_before', e.target.value || null)}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-foreground mb-1 block">Last message after</label>
+              <Input
+                type="date"
+                value={lastMessageAfter}
+                onChange={(e) => updateFilter('last_message_after', e.target.value || null)}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-foreground mb-1 block">Last message before</label>
+              <Input
+                type="date"
+                value={lastMessageBefore}
+                onChange={(e) => updateFilter('last_message_before', e.target.value || null)}
+              />
+            </div>
+          </div>
+        </details>
       </div>
 
       {isLoading ? (
@@ -248,7 +328,64 @@ export function ContactsPageContent() {
           <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
         </div>
       ) : (
-        <ContactsTable contacts={contacts} workflows={workflows} />
+        <>
+          <ContactsTable contacts={contacts} workflows={workflows} />
+
+          {/* Pagination */}
+          {total > 0 && (
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-4 bg-card rounded-xl border border-border/50 p-4">
+              <div className="flex items-center gap-4">
+                <span className="text-sm text-muted-foreground">
+                  Showing {startItem.toLocaleString()}-{endItem.toLocaleString()} of {total.toLocaleString()}
+                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">per page:</span>
+                  <Select
+                    value={pageSize.toString()}
+                    onValueChange={(value) => updateMultipleFilters({ pageSize: value, page: '1' })}
+                  >
+                    <SelectTrigger className="w-[80px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PAGE_SIZES.map((size) => (
+                        <SelectItem key={size} value={size.toString()}>
+                          {size}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => updateFilter('page', (page - 1).toString())}
+                  disabled={page <= 1}
+                >
+                  <ChevronLeft className="w-4 h-4 mr-1" />
+                  Previous
+                </Button>
+                <div className="flex items-center gap-1 px-2">
+                  <span className="text-sm text-foreground">
+                    Page {page} of {totalPages}
+                  </span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => updateFilter('page', (page + 1).toString())}
+                  disabled={page >= totalPages}
+                >
+                  Next
+                  <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   )

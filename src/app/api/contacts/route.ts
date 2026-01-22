@@ -28,6 +28,12 @@ export async function GET(request: Request) {
   const limit = parseInt(searchParams.get('limit') || '100')
   const offset = parseInt(searchParams.get('offset') || '0')
 
+  // Date range filters
+  const createdAfter = searchParams.get('created_after')
+  const createdBefore = searchParams.get('created_before')
+  const lastMessageAfter = searchParams.get('last_message_after')
+  const lastMessageBefore = searchParams.get('last_message_before')
+
   let query = supabase
     .from('contacts')
     .select(`
@@ -57,6 +63,20 @@ export async function GET(request: Request) {
 
   if (search) {
     query = query.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%`)
+  }
+
+  // Apply date filters
+  if (createdAfter) {
+    query = query.gte('created_at', createdAfter)
+  }
+  if (createdBefore) {
+    query = query.lte('created_at', createdBefore)
+  }
+  if (lastMessageAfter) {
+    query = query.gte('last_message_at', lastMessageAfter)
+  }
+  if (lastMessageBefore) {
+    query = query.lte('last_message_at', lastMessageBefore)
   }
 
   const { data: contacts, error, count } = await query

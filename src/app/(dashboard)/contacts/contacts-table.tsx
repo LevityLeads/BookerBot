@@ -133,6 +133,7 @@ export function ContactsTable({ contacts, workflows = [] }: ContactsTableProps) 
         <BulkActionsBar
           selectedCount={selectedIds.size}
           selectedIds={Array.from(selectedIds)}
+          selectedContacts={contacts.filter(c => selectedIds.has(c.id))}
           onClear={clearSelection}
           workflows={workflows}
         />

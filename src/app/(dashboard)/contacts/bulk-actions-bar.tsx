@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { X, Trash2, ArrowRight } from 'lucide-react'
+import { X, Trash2, ArrowRight, Send, Download, Loader2 } from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,7 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Workflow } from '@/types/database'
+import { Workflow, Contact, Client } from '@/types/database'
 
 const STATUSES = [
   { value: 'pending', label: 'Pending' },
@@ -36,19 +36,34 @@ const STATUSES = [
 
 type WorkflowOption = Pick<Workflow, 'id' | 'name'>
 
+type ContactWithWorkflow = Contact & {
+  workflows: Pick<Workflow, 'id' | 'name' | 'client_id' | 'channel'> & {
+    clients: Pick<Client, 'id' | 'name' | 'brand_name'>
+  }
+}
+
 interface BulkActionsBarProps {
   selectedCount: number
   selectedIds: string[]
+  selectedContacts?: ContactWithWorkflow[]
   onClear: () => void
   workflows?: WorkflowOption[]
 }
 
-export function BulkActionsBar({ selectedCount, selectedIds, onClear, workflows = [] }: BulkActionsBarProps) {
+export function BulkActionsBar({
+  selectedCount,
+  selectedIds,
+  selectedContacts = [],
+  onClear,
+  workflows = []
+}: BulkActionsBarProps) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showWorkflowConfirm, setShowWorkflowConfirm] = useState(false)
+  const [showOutreachConfirm, setShowOutreachConfirm] = useState(false)
   const [pendingWorkflowId, setPendingWorkflowId] = useState<string | null>(null)
+  const [outreachResult, setOutreachResult] = useState<{ success: number; failed: number } | null>(null)
 
   const updateStatus = async (status: string) => {
     setLoading(true)
@@ -121,6 +136,107 @@ export function BulkActionsBar({ selectedCount, selectedIds, onClear, workflows 
     }
   }
 
+  // Count pending contacts (only those can receive outreach)
+  const pendingContactIds = selectedContacts
+    .filter(c => c.status === 'pending')
+    .map(c => c.id)
+  const pendingCount = pendingContactIds.length
+
+  const triggerOutreach = async () => {
+    setLoading(true)
+    setOutreachResult(null)
+
+    let success = 0
+    let failed = 0
+
+    try {
+      // Send outreach to each pending contact
+      for (const id of pendingContactIds) {
+        try {
+          const response = await fetch(`/api/contacts/${id}/outreach`, {
+            method: 'POST',
+          })
+          if (response.ok) {
+            success++
+          } else {
+            failed++
+          }
+        } catch {
+          failed++
+        }
+      }
+
+      setOutreachResult({ success, failed })
+
+      // Refresh after a short delay to show results
+      setTimeout(() => {
+        onClear()
+        setShowOutreachConfirm(false)
+        setOutreachResult(null)
+        router.refresh()
+      }, 2000)
+    } catch (error) {
+      console.error('Error triggering outreach:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const exportToCSV = () => {
+    if (selectedContacts.length === 0) return
+
+    // Build CSV content
+    const headers = [
+      'First Name',
+      'Last Name',
+      'Phone',
+      'Email',
+      'Status',
+      'Workflow',
+      'Client',
+      'Follow-ups Sent',
+      'Created At',
+      'Last Message At',
+    ]
+
+    const rows = selectedContacts.map((contact) => [
+      contact.first_name || '',
+      contact.last_name || '',
+      contact.phone || '',
+      contact.email || '',
+      contact.status,
+      contact.workflows.name,
+      contact.workflows.clients.name,
+      contact.follow_ups_sent.toString(),
+      new Date(contact.created_at).toLocaleDateString(),
+      contact.last_message_at ? new Date(contact.last_message_at).toLocaleDateString() : '',
+    ])
+
+    // Escape CSV values
+    const escapeCSV = (value: string) => {
+      if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+        return `"${value.replace(/"/g, '""')}"`
+      }
+      return value
+    }
+
+    const csvContent = [
+      headers.map(escapeCSV).join(','),
+      ...rows.map((row) => row.map(escapeCSV).join(',')),
+    ].join('\n')
+
+    // Download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', `contacts-export-${new Date().toISOString().split('T')[0]}.csv`)
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
   const pendingWorkflow = workflows.find(w => w.id === pendingWorkflowId)
 
   return (
@@ -163,6 +279,31 @@ export function BulkActionsBar({ selectedCount, selectedIds, onClear, workflows 
                 </SelectContent>
               </Select>
             </div>
+          )}
+
+          {pendingCount > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowOutreachConfirm(true)}
+              disabled={loading}
+              className="text-cyan-400 border-cyan-500/30 hover:bg-cyan-500/10"
+            >
+              <Send className="w-4 h-4 mr-1" />
+              Send Outreach ({pendingCount})
+            </Button>
+          )}
+
+          {selectedContacts.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={exportToCSV}
+              disabled={loading}
+            >
+              <Download className="w-4 h-4 mr-1" />
+              Export CSV
+            </Button>
           )}
 
           <Button
@@ -231,6 +372,63 @@ export function BulkActionsBar({ selectedCount, selectedIds, onClear, workflows 
             >
               {loading ? 'Moving...' : 'Move Contacts'}
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Outreach Confirmation Dialog */}
+      <AlertDialog open={showOutreachConfirm} onOpenChange={setShowOutreachConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Send className="w-5 h-5 text-cyan-400" />
+              Send outreach to {pendingCount} contacts?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {outreachResult ? (
+                <div className="mt-2 space-y-2">
+                  <div className="text-green-400">
+                    {outreachResult.success} message{outreachResult.success !== 1 ? 's' : ''} sent successfully
+                  </div>
+                  {outreachResult.failed > 0 && (
+                    <div className="text-red-400">
+                      {outreachResult.failed} message{outreachResult.failed !== 1 ? 's' : ''} failed
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <>
+                  This will send the initial outreach message to all {pendingCount} pending contacts.
+                  Only contacts with &quot;Pending&quot; status will receive messages.
+                  {selectedCount > pendingCount && (
+                    <span className="block mt-2 text-yellow-400">
+                      Note: {selectedCount - pendingCount} contact{selectedCount - pendingCount !== 1 ? 's' : ''} will be skipped (not in Pending status)
+                    </span>
+                  )}
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            {!outreachResult && (
+              <>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={triggerOutreach}
+                  disabled={loading}
+                  className="bg-cyan-600 hover:bg-cyan-700"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    'Send Messages'
+                  )}
+                </AlertDialogAction>
+              </>
+            )}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -3,7 +3,7 @@
 **Created:** January 2026
 **Updated:** January 2026
 **Author:** Docs & Audit Lead
-**Status:** Phase B Complete - Analytics Dashboard Done
+**Status:** Phase C Complete - CRM Foundations Done
 
 ---
 
@@ -34,7 +34,7 @@
 | Feature | Priority | Complexity |
 |---------|----------|------------|
 | Real Analytics | ✅ COMPLETE | Medium |
-| CRM Foundations | **HIGH** | Medium |
+| CRM Foundations | ✅ COMPLETE | Medium |
 | Production Hardening | **MEDIUM** | Medium |
 | Email Channel (Resend) | LOW | Medium |
 
@@ -341,11 +341,20 @@ Based on business value and dependencies:
 **New files created:**
 - `src/app/api/analytics/route.ts` - Analytics API endpoint
 
-### Phase C: CRM Foundations (Sprint 6c)
-1. Add UI pagination to contacts page
-2. Add date range filters
-3. Add bulk status operations
-4. (Optional) Contact tags schema
+### Phase C: CRM Foundations (Sprint 6c) ✅ COMPLETE
+1. ✅ Add UI pagination to contacts page (25, 50, 100, 250 per page)
+2. ✅ Add date range filters (created date, last message date)
+3. ✅ Add bulk status operations (already existed)
+4. ✅ Add bulk move to workflow (already existed)
+5. ✅ Add bulk trigger outreach for pending contacts
+6. ✅ Add export selected contacts to CSV
+7. ❌ Contact tags schema (deferred)
+
+**Files modified:**
+- `src/app/api/contacts/route.ts` - Added date range filter params
+- `src/app/(dashboard)/contacts/contacts-page-content.tsx` - Added pagination UI, date filters
+- `src/app/(dashboard)/contacts/bulk-actions-bar.tsx` - Added outreach trigger, CSV export
+- `src/app/(dashboard)/contacts/contacts-table.tsx` - Pass selected contacts to bulk bar
 
 ### Phase D: Appointments Polish (Sprint 6d)
 1. Add status management UI
