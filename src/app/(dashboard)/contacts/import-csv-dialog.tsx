@@ -29,12 +29,11 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Upload, FileText, Check, AlertCircle } from 'lucide-react'
-import { Client, Workflow } from '@/types/database'
+import { Workflow } from '@/types/database'
 
 interface ImportCsvDialogProps {
   children: React.ReactNode
   workflows: Pick<Workflow, 'id' | 'name' | 'client_id'>[]
-  clients: Pick<Client, 'id' | 'name' | 'brand_name'>[]
 }
 
 type ImportStep = 'upload' | 'map' | 'preview' | 'result'
@@ -47,28 +46,22 @@ const CONTACT_FIELDS = [
   { value: 'email', label: 'Email' },
 ]
 
-export function ImportCsvDialog({ children, workflows, clients }: ImportCsvDialogProps) {
+export function ImportCsvDialog({ children, workflows }: ImportCsvDialogProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [step, setStep] = useState<ImportStep>('upload')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const [selectedClient, setSelectedClient] = useState<string>('')
   const [selectedWorkflow, setSelectedWorkflow] = useState<string>('')
   const [csvHeaders, setCsvHeaders] = useState<string[]>([])
   const [csvData, setCsvData] = useState<string[][]>([])
   const [columnMapping, setColumnMapping] = useState<Record<number, string>>({})
   const [importResult, setImportResult] = useState<{ imported: number } | null>(null)
 
-  const filteredWorkflows = selectedClient
-    ? workflows.filter((w) => w.client_id === selectedClient)
-    : workflows
-
   const resetState = () => {
     setStep('upload')
     setError(null)
-    setSelectedClient('')
     setSelectedWorkflow('')
     setCsvHeaders([])
     setCsvData([])
@@ -223,51 +216,34 @@ export function ImportCsvDialog({ children, workflows, clients }: ImportCsvDialo
         {step === 'upload' && (
           <div className="space-y-4 py-4">
             <div className="grid gap-2">
-              <Label>Client</Label>
-              <Select
-                value={selectedClient}
-                onValueChange={(value) => {
-                  setSelectedClient(value)
-                  setSelectedWorkflow('')
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a client" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clients.map((client) => (
-                    <SelectItem key={client.id} value={client.id}>
-                      {client.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid gap-2">
               <Label>Workflow</Label>
               <Select
                 value={selectedWorkflow}
                 onValueChange={setSelectedWorkflow}
-                disabled={!selectedClient}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder={selectedClient ? 'Select a workflow' : 'Select a client first'} />
+                  <SelectValue placeholder="Select a workflow" />
                 </SelectTrigger>
                 <SelectContent>
-                  {filteredWorkflows.map((workflow) => (
-                    <SelectItem key={workflow.id} value={workflow.id}>
-                      {workflow.name}
-                    </SelectItem>
-                  ))}
+                  {workflows.length === 0 ? (
+                    <div className="px-2 py-4 text-sm text-muted-foreground text-center">
+                      No workflows available. Create one first.
+                    </div>
+                  ) : (
+                    workflows.map((workflow) => (
+                      <SelectItem key={workflow.id} value={workflow.id}>
+                        {workflow.name}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>
 
             {selectedWorkflow && (
-              <div className="border-2 border-dashed border-gray-200 rounded-lg p-8 text-center">
-                <Upload className="w-10 h-10 text-gray-400 mx-auto mb-4" />
-                <p className="text-sm text-gray-600 mb-2">
+              <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
+                <Upload className="w-10 h-10 text-muted-foreground mx-auto mb-4" />
+                <p className="text-sm text-muted-foreground mb-2">
                   Drop your CSV file here or click to browse
                 </p>
                 <input
@@ -286,7 +262,7 @@ export function ImportCsvDialog({ children, workflows, clients }: ImportCsvDialo
             )}
 
             {error && (
-              <div className="text-sm text-red-600 bg-red-50 p-2 rounded flex items-center gap-2">
+              <div className="text-sm text-red-400 bg-red-500/10 p-2 rounded flex items-center gap-2">
                 <AlertCircle className="w-4 h-4" />
                 {error}
               </div>
@@ -296,7 +272,7 @@ export function ImportCsvDialog({ children, workflows, clients }: ImportCsvDialo
 
         {step === 'map' && (
           <div className="space-y-4 py-4">
-            <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
               <FileText className="w-4 h-4" />
               {csvData.length} rows found
             </div>
@@ -333,7 +309,7 @@ export function ImportCsvDialog({ children, workflows, clients }: ImportCsvDialo
                           </SelectContent>
                         </Select>
                       </TableCell>
-                      <TableCell className="text-gray-500 text-sm">
+                      <TableCell className="text-muted-foreground text-sm">
                         {csvData[0]?.[index] || '-'}
                       </TableCell>
                     </TableRow>
@@ -343,7 +319,7 @@ export function ImportCsvDialog({ children, workflows, clients }: ImportCsvDialo
             </div>
 
             {error && (
-              <div className="text-sm text-red-600 bg-red-50 p-2 rounded flex items-center gap-2">
+              <div className="text-sm text-red-400 bg-red-500/10 p-2 rounded flex items-center gap-2">
                 <AlertCircle className="w-4 h-4" />
                 {error}
               </div>
@@ -353,7 +329,7 @@ export function ImportCsvDialog({ children, workflows, clients }: ImportCsvDialo
 
         {step === 'preview' && (
           <div className="space-y-4 py-4">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-muted-foreground">
               Preview of first 5 contacts (out of {csvData.length} total):
             </p>
 
@@ -381,7 +357,7 @@ export function ImportCsvDialog({ children, workflows, clients }: ImportCsvDialo
             </div>
 
             {error && (
-              <div className="text-sm text-red-600 bg-red-50 p-2 rounded flex items-center gap-2">
+              <div className="text-sm text-red-400 bg-red-500/10 p-2 rounded flex items-center gap-2">
                 <AlertCircle className="w-4 h-4" />
                 {error}
               </div>
@@ -391,13 +367,13 @@ export function ImportCsvDialog({ children, workflows, clients }: ImportCsvDialo
 
         {step === 'result' && (
           <div className="py-8 text-center">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Check className="w-8 h-8 text-green-600" />
+            <div className="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Check className="w-8 h-8 text-green-400" />
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
+            <h3 className="text-lg font-medium text-foreground mb-2">
               Import Successful
             </h3>
-            <p className="text-gray-500">
+            <p className="text-muted-foreground">
               {importResult?.imported} contacts have been added to the workflow
             </p>
           </div>

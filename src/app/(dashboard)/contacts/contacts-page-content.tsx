@@ -163,13 +163,13 @@ export function ContactsPageContent() {
           </p>
         </div>
         <div className="flex gap-2">
-          <ImportCsvDialog workflows={workflows} clients={selectedClient ? [selectedClient] : []}>
+          <ImportCsvDialog workflows={workflows}>
             <Button variant="outline">
               <Upload className="w-4 h-4 mr-2" />
               Import CSV
             </Button>
           </ImportCsvDialog>
-          <CreateContactDialog workflows={workflows} clients={selectedClient ? [selectedClient] : []}>
+          <CreateContactDialog workflows={workflows}>
             <Button>
               <Plus className="w-4 h-4 mr-2" />
               Add Contact

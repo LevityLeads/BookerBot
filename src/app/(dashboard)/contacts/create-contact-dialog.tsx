@@ -21,21 +21,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Client, Workflow } from '@/types/database'
+import { Workflow } from '@/types/database'
 
 interface CreateContactDialogProps {
   children: React.ReactNode
   workflows: Pick<Workflow, 'id' | 'name' | 'client_id'>[]
-  clients: Pick<Client, 'id' | 'name' | 'brand_name'>[]
 }
 
-export function CreateContactDialog({ children, workflows, clients }: CreateContactDialogProps) {
+export function CreateContactDialog({ children, workflows }: CreateContactDialogProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const [selectedClient, setSelectedClient] = useState<string>('')
   const [formData, setFormData] = useState({
     workflow_id: '',
     first_name: '',
@@ -43,10 +41,6 @@ export function CreateContactDialog({ children, workflows, clients }: CreateCont
     phone: '',
     email: '',
   })
-
-  const filteredWorkflows = selectedClient
-    ? workflows.filter((w) => w.client_id === selectedClient)
-    : workflows
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -85,7 +79,6 @@ export function CreateContactDialog({ children, workflows, clients }: CreateCont
         phone: '',
         email: '',
       })
-      setSelectedClient('')
       router.refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
@@ -108,43 +101,26 @@ export function CreateContactDialog({ children, workflows, clients }: CreateCont
 
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="client">Client</Label>
-              <Select
-                value={selectedClient}
-                onValueChange={(value) => {
-                  setSelectedClient(value)
-                  setFormData({ ...formData, workflow_id: '' })
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a client" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clients.map((client) => (
-                    <SelectItem key={client.id} value={client.id}>
-                      {client.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid gap-2">
               <Label htmlFor="workflow">Workflow</Label>
               <Select
                 value={formData.workflow_id}
                 onValueChange={(value) => setFormData({ ...formData, workflow_id: value })}
-                disabled={!selectedClient}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder={selectedClient ? 'Select a workflow' : 'Select a client first'} />
+                  <SelectValue placeholder="Select a workflow" />
                 </SelectTrigger>
                 <SelectContent>
-                  {filteredWorkflows.map((workflow) => (
-                    <SelectItem key={workflow.id} value={workflow.id}>
-                      {workflow.name}
-                    </SelectItem>
-                  ))}
+                  {workflows.length === 0 ? (
+                    <div className="px-2 py-4 text-sm text-muted-foreground text-center">
+                      No workflows available. Create one first.
+                    </div>
+                  ) : (
+                    workflows.map((workflow) => (
+                      <SelectItem key={workflow.id} value={workflow.id}>
+                        {workflow.name}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -190,13 +166,13 @@ export function CreateContactDialog({ children, workflows, clients }: CreateCont
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               />
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-muted-foreground">
                 At least one contact method (phone or email) is required
               </p>
             </div>
 
             {error && (
-              <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
+              <div className="text-sm text-red-400 bg-red-500/10 p-2 rounded">
                 {error}
               </div>
             )}
