@@ -298,6 +298,7 @@ export class GoogleCalendarProvider implements CalendarProvider {
       end: { dateTime: string }
       htmlLink?: string
       conferenceData?: { entryPoints?: Array<{ uri: string }> }
+      attendees?: Array<{ email: string; responseStatus?: string }>
     }>(`/calendars/${encodeURIComponent(calendarId)}/events?${queryParams.toString()}`, {
       method: 'POST',
       body: JSON.stringify(eventBody),
@@ -307,6 +308,7 @@ export class GoogleCalendarProvider implements CalendarProvider {
       eventId: data.id,
       htmlLink: data.htmlLink,
       hasMeetLink: !!data.conferenceData?.entryPoints?.length,
+      attendeesInResponse: data.attendees || 'NO ATTENDEES IN RESPONSE - INVITES MAY NOT HAVE BEEN SENT',
     })
 
     return {
@@ -374,6 +376,7 @@ export class GoogleCalendarProvider implements CalendarProvider {
       start: { dateTime: string }
       end: { dateTime: string }
       htmlLink?: string
+      attendees?: Array<{ email: string; responseStatus?: string }>
     }>(
       `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}?${queryParams.toString()}`,
       {
@@ -385,6 +388,7 @@ export class GoogleCalendarProvider implements CalendarProvider {
     console.log('[GoogleCalendar] Event updated successfully:', {
       eventId: data.id,
       htmlLink: data.htmlLink,
+      attendeesInResponse: data.attendees || 'NO ATTENDEES IN RESPONSE - INVITES MAY NOT HAVE BEEN SENT',
     })
 
     return {
