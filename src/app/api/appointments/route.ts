@@ -17,6 +17,10 @@ export async function GET(request: NextRequest) {
   const limit = parseInt(searchParams.get('limit') || '50', 10)
   const offset = parseInt(searchParams.get('offset') || '0', 10)
 
+  // Date range filters
+  const startAfter = searchParams.get('start_after')
+  const startBefore = searchParams.get('start_before')
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let query = (supabase as any)
     .from('appointments')
@@ -38,7 +42,7 @@ export async function GET(request: NextRequest) {
         name,
         brand_name
       )
-    `)
+    `, { count: 'exact' })
     .order('start_time', { ascending: false })
     .range(offset, offset + limit - 1)
 
@@ -58,11 +62,19 @@ export async function GET(request: NextRequest) {
     query = query.eq('status', status)
   }
 
-  const { data, error } = await query
+  // Apply date filters
+  if (startAfter) {
+    query = query.gte('start_time', startAfter)
+  }
+  if (startBefore) {
+    query = query.lte('start_time', startBefore)
+  }
+
+  const { data, error, count } = await query
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json(data)
+  return NextResponse.json({ appointments: data, total: count })
 }
