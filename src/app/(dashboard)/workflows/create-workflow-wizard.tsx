@@ -47,11 +47,12 @@ interface ClientWithBrand extends Pick<Client, 'id' | 'name' | 'brand_name'> {
 interface CreateWorkflowWizardProps {
   children: React.ReactNode
   clients: ClientWithBrand[]
+  preselectedClientId?: string
 }
 
 type WizardStep = 'basics' | 'qualification' | 'creating'
 
-export function CreateWorkflowWizard({ children, clients }: CreateWorkflowWizardProps) {
+export function CreateWorkflowWizard({ children, clients, preselectedClientId }: CreateWorkflowWizardProps) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [step, setStep] = useState<WizardStep>('basics')
@@ -59,7 +60,7 @@ export function CreateWorkflowWizard({ children, clients }: CreateWorkflowWizard
 
   // Step 1: Basic inputs
   const [basics, setBasics] = useState({
-    clientId: '',
+    clientId: preselectedClientId || '',
     name: '',
     goal: '',
     channel: 'sms' as 'sms' | 'whatsapp' | 'email'
@@ -128,7 +129,7 @@ export function CreateWorkflowWizard({ children, clients }: CreateWorkflowWizard
 
   const resetWizard = () => {
     setStep('basics')
-    setBasics({ clientId: '', name: '', goal: '', channel: 'sms' })
+    setBasics({ clientId: preselectedClientId || '', name: '', goal: '', channel: 'sms' })
     setQualificationCriteria([
       'Has expressed interest in our services',
       'Has provided contact information',
