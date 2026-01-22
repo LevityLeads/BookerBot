@@ -263,6 +263,7 @@ export class GoogleCalendarProvider implements CalendarProvider {
       sendUpdates: 'all',
       conferenceDataVersion: event.addGoogleMeet ? '1' : 'none',
       hasAttendees: !!attendees,
+      attendeeDetails: attendees || 'NONE - NO INVITE WILL BE SENT',
     })
 
     // Build event body
@@ -286,6 +287,8 @@ export class GoogleCalendarProvider implements CalendarProvider {
         },
       }
     }
+
+    console.log('[GoogleCalendar] Full event body being sent:', JSON.stringify(eventBody, null, 2))
 
     const data = await this.apiRequest<{
       id: string
@@ -351,7 +354,18 @@ export class GoogleCalendarProvider implements CalendarProvider {
     console.log('[GoogleCalendar] Update API request params:', {
       sendUpdates: 'all',
       hasAttendees: !!attendees,
+      attendeeDetails: attendees || 'NONE - NO INVITE WILL BE SENT',
     })
+
+    const updateBody = {
+      summary: event.summary,
+      description: event.description,
+      start: { dateTime: event.start.toISOString(), timeZone },
+      end: { dateTime: event.end.toISOString(), timeZone },
+      attendees,
+    }
+
+    console.log('[GoogleCalendar] Full update body being sent:', JSON.stringify(updateBody, null, 2))
 
     const data = await this.apiRequest<{
       id: string
@@ -364,13 +378,7 @@ export class GoogleCalendarProvider implements CalendarProvider {
       `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}?${queryParams.toString()}`,
       {
         method: 'PUT',
-        body: JSON.stringify({
-          summary: event.summary,
-          description: event.description,
-          start: { dateTime: event.start.toISOString(), timeZone },
-          end: { dateTime: event.end.toISOString(), timeZone },
-          attendees,
-        }),
+        body: JSON.stringify(updateBody),
       }
     )
 

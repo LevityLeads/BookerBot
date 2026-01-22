@@ -815,6 +815,8 @@ class BookingHandler {
             calendarId: connection.connection.calendar_id,
             clientId: client.id,
             contactId: contact.id,
+            contactEmail: contact.email || 'NO EMAIL - INVITE WILL NOT BE SENT',
+            contactName: contactName,
             newStartTime: slot.start.toISOString(),
             timezone: clientTimezone,
           })
@@ -840,6 +842,8 @@ class BookingHandler {
             calendarId: connection.connection.calendar_id,
             clientId: client.id,
             contactId: contact.id,
+            contactEmail: contact.email || 'NO EMAIL - INVITE WILL NOT BE SENT',
+            contactName: contactName,
             startTime: slot.start.toISOString(),
             timezone: clientTimezone,
           })
