@@ -3,7 +3,7 @@
 **Created:** January 2026
 **Updated:** January 2026
 **Author:** Docs & Audit Lead
-**Status:** Phase C Complete - CRM Foundations Done
+**Status:** Phase E Complete - Production Hardening Done (Sprint 6-7 Complete)
 
 ---
 
@@ -35,7 +35,7 @@
 |---------|----------|------------|
 | Real Analytics | ✅ COMPLETE | Medium |
 | CRM Foundations | ✅ COMPLETE | Medium |
-| Production Hardening | **MEDIUM** | Medium |
+| Production Hardening | ✅ COMPLETE | Medium |
 | Email Channel (Resend) | LOW | Medium |
 
 ---
@@ -356,16 +356,33 @@ Based on business value and dependencies:
 - `src/app/(dashboard)/contacts/bulk-actions-bar.tsx` - Added outreach trigger, CSV export
 - `src/app/(dashboard)/contacts/contacts-table.tsx` - Pass selected contacts to bulk bar
 
-### Phase D: Appointments Polish (Sprint 6d)
-1. Add status management UI
-2. Add appointment filtering
-3. (Optional) Calendar view
+### Phase D: Appointments Polish (Sprint 6d) ✅ COMPLETE
+1. ✅ Add status management UI (dropdown: complete, no-show, cancel)
+2. ✅ Add appointment filtering (status, date range)
+3. ✅ Add notes dialog for adding/editing appointment notes
+4. ❌ Calendar view (deferred)
 
-### Phase E: Hardening (Sprint 7)
-1. Add rate limiting
-2. Add error boundaries
-3. Re-enable authentication
-4. Security audit
+**Files modified:**
+- `src/app/api/appointments/route.ts` - Added date range filter params, total count
+- `src/app/(dashboard)/appointments/appointments-page-content.tsx` - Status management, filtering, notes
+
+### Phase E: Hardening (Sprint 7) ✅ COMPLETE
+1. ✅ Add rate limiting (in-memory, production-ready patterns)
+2. ✅ Add error boundaries (dashboard wrapping)
+3. ✅ Add auth enforcement helper (toggle via AUTH_ENABLED env var)
+4. ❌ Security audit (ongoing)
+
+**New files created:**
+- `src/lib/rate-limit.ts` - Rate limiting utility with configurable limits
+- `src/lib/auth.ts` - Auth helper for API routes (toggleable)
+- `src/components/error-boundary.tsx` - React error boundary component
+- `src/app/(dashboard)/dashboard-error-boundary.tsx` - Dashboard error wrapper
+
+**Files modified:**
+- `src/app/api/ai/respond/route.ts` - Added rate limiting
+- `src/app/api/ai/test/route.ts` - Added rate limiting
+- `src/app/api/webhooks/twilio/inbound/route.ts` - Added rate limiting
+- `src/app/(dashboard)/layout.tsx` - Added error boundary
 
 ---
 

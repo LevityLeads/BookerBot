@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { generateResponse, estimateCost } from '@/lib/ai/client'
+import { checkRateLimit, getClientIdentifier, RATE_LIMITS } from '@/lib/rate-limit'
 import { contextManager } from '@/lib/ai/context-manager'
 import { promptBuilder } from '@/lib/ai/prompt-builder'
 import { intentDetector } from '@/lib/ai/intent-detector'
@@ -37,6 +38,24 @@ interface TestRequest {
 }
 
 export async function POST(request: Request) {
+  // Rate limiting for AI endpoints
+  const clientId = getClientIdentifier(request)
+  const rateLimit = checkRateLimit(`ai:${clientId}`, RATE_LIMITS.ai)
+
+  if (!rateLimit.success) {
+    return NextResponse.json(
+      { error: 'Rate limit exceeded. Please try again later.' },
+      {
+        status: 429,
+        headers: {
+          'X-RateLimit-Limit': rateLimit.limit.toString(),
+          'X-RateLimit-Remaining': rateLimit.remaining.toString(),
+          'X-RateLimit-Reset': rateLimit.resetTime.toString(),
+        },
+      }
+    )
+  }
+
   const startTime = Date.now()
 
   try {

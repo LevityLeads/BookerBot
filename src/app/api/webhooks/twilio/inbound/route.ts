@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { orchestrator } from '@/lib/ai/orchestrator'
 import { sendMessage, validateTwilioRequest, formatPhoneNumber } from '@/lib/twilio/client'
 import { isOptOutMessage } from '@/lib/constants/opt-out'
+import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 
 /**
  * Calculate a realistic "typing" delay based on message length.
@@ -45,6 +46,18 @@ interface ContactResult {
 
 // Twilio webhook for inbound SMS/WhatsApp messages
 export async function POST(request: Request) {
+  // Rate limiting for webhook endpoints (using higher limit)
+  // Use a fixed key since Twilio sends from their servers
+  const rateLimit = checkRateLimit('webhook:twilio', RATE_LIMITS.webhook)
+
+  if (!rateLimit.success) {
+    console.warn('Twilio webhook rate limit exceeded')
+    return NextResponse.json(
+      { error: 'Rate limit exceeded' },
+      { status: 429 }
+    )
+  }
+
   try {
     // Parse form data from Twilio
     const formData = await request.formData()

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { orchestrator } from '@/lib/ai'
+import { checkRateLimit, getClientIdentifier, RATE_LIMITS } from '@/lib/rate-limit'
 
 interface RespondRequest {
   contactId: string
@@ -7,6 +8,24 @@ interface RespondRequest {
 }
 
 export async function POST(request: Request) {
+  // Rate limiting for AI endpoints
+  const clientId = getClientIdentifier(request)
+  const rateLimit = checkRateLimit(`ai:${clientId}`, RATE_LIMITS.ai)
+
+  if (!rateLimit.success) {
+    return NextResponse.json(
+      { error: 'Rate limit exceeded. Please try again later.' },
+      {
+        status: 429,
+        headers: {
+          'X-RateLimit-Limit': rateLimit.limit.toString(),
+          'X-RateLimit-Remaining': rateLimit.remaining.toString(),
+          'X-RateLimit-Reset': rateLimit.resetTime.toString(),
+        },
+      }
+    )
+  }
+
   try {
     const body = await request.json() as RespondRequest
 

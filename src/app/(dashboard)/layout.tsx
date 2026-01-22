@@ -1,5 +1,6 @@
 import { Sidebar } from '@/components/sidebar'
 import { ClientProvider } from '@/contexts/client-context'
+import { DashboardErrorBoundary } from './dashboard-error-boundary'
 
 export default async function DashboardLayout({
   children,
@@ -16,7 +17,9 @@ export default async function DashboardLayout({
       <div className="flex h-screen bg-background">
         <Sidebar />
         <main className="flex-1 overflow-auto">
-          {children}
+          <DashboardErrorBoundary>
+            {children}
+          </DashboardErrorBoundary>
         </main>
       </div>
     </ClientProvider>
