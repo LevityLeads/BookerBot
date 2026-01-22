@@ -224,12 +224,17 @@ class BookingHandler {
       }
     } catch (error) {
       console.error('Failed to get available slots:', error)
+      // Return a user-friendly message instead of failing silently
+      // This lets the user know there's an issue and offers a fallback
       return {
-        message: '',
-        bookingState,
+        message: "I'm having trouble checking the calendar right now. Let me have someone reach out to help you book a time.",
+        bookingState: {
+          ...bookingState,
+          offerAttempts: bookingState.offerAttempts + 1,
+        },
         appointmentCreated: false,
         appointmentRescheduled: false,
-        continueWithAI: true, // Let AI handle naturally
+        continueWithAI: false,
       }
     }
   }

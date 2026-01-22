@@ -103,7 +103,10 @@ export async function getCalendarConnectionForClient(
         error: err instanceof Error ? err.message : err,
         clientId,
       })
-      // Return existing tokens, they might still work
+      // Token refresh failed - the calendar connection is invalid
+      // Return null so callers know the calendar is unavailable
+      // This prevents silent failures when trying to use expired tokens
+      return null
     }
   }
 
