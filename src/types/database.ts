@@ -145,6 +145,7 @@ export type Database = {
           opt_out_message: string
           follow_up_count: number
           follow_up_delay_hours: number
+          follow_up_templates: Json
           appointment_duration_minutes: number
           qualification_criteria: string | null
           created_at: string
@@ -162,6 +163,7 @@ export type Database = {
           opt_out_message?: string
           follow_up_count?: number
           follow_up_delay_hours?: number
+          follow_up_templates?: Json
           appointment_duration_minutes?: number
           qualification_criteria?: string | null
           created_at?: string
@@ -179,6 +181,7 @@ export type Database = {
           opt_out_message?: string
           follow_up_count?: number
           follow_up_delay_hours?: number
+          follow_up_templates?: Json
           appointment_duration_minutes?: number
           qualification_criteria?: string | null
           created_at?: string
@@ -374,4 +377,10 @@ export type BusinessHours = {
   friday: { start: string; end: string } | null
   saturday: { start: string; end: string } | null
   sunday: { start: string; end: string } | null
+}
+
+// Follow-up template type
+export type FollowUpTemplate = {
+  message: string
+  delay_hours: number
 }

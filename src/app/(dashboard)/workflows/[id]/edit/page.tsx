@@ -17,7 +17,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ArrowLeft } from 'lucide-react'
-import { Workflow } from '@/types/database'
+import { Workflow, FollowUpTemplate } from '@/types/database'
+import { FollowUpEditor } from '@/components/follow-up-editor'
 
 interface EditWorkflowPageProps {
   params: { id: string }
@@ -37,6 +38,7 @@ export default function EditWorkflowPage({ params }: EditWorkflowPageProps) {
     instructions: '',
     qualification_criteria: '',
     initial_message_template: '',
+    follow_up_templates: [] as FollowUpTemplate[],
   })
 
   useEffect(() => {
@@ -62,6 +64,7 @@ export default function EditWorkflowPage({ params }: EditWorkflowPageProps) {
         instructions: workflowData.instructions || '',
         qualification_criteria: workflowData.qualification_criteria || '',
         initial_message_template: workflowData.initial_message_template || '',
+        follow_up_templates: (workflowData.follow_up_templates as FollowUpTemplate[] | null) || [],
       })
       setLoading(false)
     }
@@ -240,6 +243,20 @@ Example: We help B2B companies get their research and insights published on The 
                 <p className="text-xs text-muted-foreground">
                   Variables: {'{first_name}'}, {'{last_name}'}, {'{brand_name}'}, {'{company_name}'}
                 </p>
+              </div>
+
+              {/* Follow-up Messages */}
+              <div className="border-t pt-6">
+                <FollowUpEditor
+                  templates={formData.follow_up_templates}
+                  onChange={(templates) =>
+                    setFormData({ ...formData, follow_up_templates: templates })
+                  }
+                  workflowId={params.id}
+                  instructions={formData.instructions}
+                  channel={formData.channel}
+                  disabled={saving}
+                />
               </div>
             </div>
 

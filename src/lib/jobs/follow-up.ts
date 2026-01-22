@@ -13,7 +13,7 @@ import { contextManager } from '@/lib/ai/context-manager'
 import { promptBuilder } from '@/lib/ai/prompt-builder'
 import { isWithinBusinessHours } from './business-hours'
 import { JobResult, JobError, BatchConfig, DEFAULT_BATCH_CONFIG, ProcessingStats } from './types'
-import { Contact, Workflow, Client, Message, BusinessHours, Json } from '@/types/database'
+import { Contact, Workflow, Client, Message, BusinessHours, Json, FollowUpTemplate } from '@/types/database'
 import { WorkflowKnowledge } from '@/types/ai'
 
 type FollowUpContact = Contact & {
@@ -221,90 +221,133 @@ export async function processFollowUps(
 async function sendFollowUpMessage(contact: FollowUpContact): Promise<{ success: boolean; error?: string }> {
   const supabase = createClient()
 
-  // Get recent messages for context
-  const { data: messages } = await supabase
-    .from('messages')
-    .select('*')
-    .eq('contact_id', contact.id)
-    .order('created_at', { ascending: false })
-    .limit(10)
-
-  const recentMessages = (messages || []) as Message[]
-
-  // Parse conversation context
-  const context = contextManager.parse(contact.conversation_context)
-
-  // Build workflow knowledge
   const workflow = contact.workflows
   const client = workflow.clients
-  const knowledge: WorkflowKnowledge = {
-    companyName: client.brand_name || client.name,
-    brandSummary: '',
-    services: [],
-    targetAudience: '',
-    tone: 'professional',
-    commonObjections: [],
-    faqs: [],
-    recentNews: [],
-    qualificationCriteria: parseQualificationCriteria(workflow.qualification_criteria),
-    dos: [],
-    donts: [],
-    goal: 'Book an appointment',
-    researchedAt: '',
-    sourceUrl: '',
-  }
-
-  // Generate follow-up message using AI
   const followUpNumber = contact.follow_ups_sent + 1
   const maxFollowUps = workflow.follow_up_count
 
-  const systemPrompt = promptBuilder.buildFollowUpPrompt({
-    contact: {
-      firstName: contact.first_name,
-      lastName: contact.last_name,
-    },
-    context,
-    knowledge,
-    followUpNumber,
-    maxFollowUps,
-    lastMessageDays: calculateDaysSinceLastMessage(contact.last_message_at),
-    channel: workflow.channel as 'sms' | 'whatsapp',
-  })
+  // Check if there's a custom template for this follow-up
+  const templates = (workflow.follow_up_templates as FollowUpTemplate[] | null) || []
+  const templateIndex = followUpNumber - 1
+  const customTemplate = templates[templateIndex]
 
-  try {
-    // Build messages array with conversation history and system trigger
-    const messages = [
-      ...formatConversationHistory(recentMessages),
-      { role: 'user' as const, content: '[Generate follow-up message]' }
-    ]
+  let messageContent: string | null = null
+  let aiGenerated = false
+  let tokensUsed: number | undefined
 
-    const aiResponse = await generateResponse({
-      model: 'claude-sonnet-4-20250514', // Use faster model for follow-ups
-      systemPrompt,
-      messages,
-      maxTokens: workflow.channel === 'whatsapp' ? 250 : 150,
+  if (customTemplate && customTemplate.message) {
+    // Use custom template with variable substitution
+    messageContent = substituteVariables(customTemplate.message, {
+      first_name: contact.first_name,
+      last_name: contact.last_name,
+      brand_name: client.brand_name || client.name,
+      company_name: client.name,
     })
+    console.log(`[FollowUp] Using custom template for follow-up #${followUpNumber}`)
+  } else {
+    // Fall back to AI generation
+    console.log(`[FollowUp] No custom template for follow-up #${followUpNumber}, using AI generation`)
 
-    if (!aiResponse.content) {
-      return { success: false, error: 'Failed to generate follow-up message' }
+    // Get recent messages for context
+    const { data: messages } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('contact_id', contact.id)
+      .order('created_at', { ascending: false })
+      .limit(10)
+
+    const recentMessages = (messages || []) as Message[]
+
+    // Parse conversation context
+    const context = contextManager.parse(contact.conversation_context)
+
+    // Build workflow knowledge
+    const knowledge: WorkflowKnowledge = {
+      companyName: client.brand_name || client.name,
+      brandSummary: '',
+      services: [],
+      targetAudience: '',
+      tone: 'professional',
+      commonObjections: [],
+      faqs: [],
+      recentNews: [],
+      qualificationCriteria: parseQualificationCriteria(workflow.qualification_criteria),
+      dos: [],
+      donts: [],
+      goal: 'Book an appointment',
+      researchedAt: '',
+      sourceUrl: '',
     }
 
+    const systemPrompt = promptBuilder.buildFollowUpPrompt({
+      contact: {
+        firstName: contact.first_name,
+        lastName: contact.last_name,
+      },
+      context,
+      knowledge,
+      followUpNumber,
+      maxFollowUps,
+      lastMessageDays: calculateDaysSinceLastMessage(contact.last_message_at),
+      channel: workflow.channel as 'sms' | 'whatsapp',
+    })
+
+    try {
+      // Build messages array with conversation history and system trigger
+      const aiMessages = [
+        ...formatConversationHistory(recentMessages),
+        { role: 'user' as const, content: '[Generate follow-up message]' }
+      ]
+
+      const aiResponse = await generateResponse({
+        model: 'claude-sonnet-4-20250514', // Use faster model for follow-ups
+        systemPrompt,
+        messages: aiMessages,
+        maxTokens: workflow.channel === 'whatsapp' ? 250 : 150,
+      })
+
+      if (!aiResponse.content) {
+        return { success: false, error: 'Failed to generate follow-up message' }
+      }
+
+      messageContent = aiResponse.content
+      aiGenerated = true
+      tokensUsed = aiResponse.usage?.total
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error generating follow-up',
+      }
+    }
+  }
+
+  if (!messageContent) {
+    return { success: false, error: 'No message content to send' }
+  }
+
+  try {
     // Send the message
     const sendResult = await sendOutboundMessage({
       contactId: contact.id,
-      message: aiResponse.content,
+      message: messageContent,
       channel: workflow.channel as 'sms' | 'whatsapp',
-      aiGenerated: true,
-      tokensUsed: aiResponse.usage?.total,
+      aiGenerated,
+      tokensUsed,
     })
 
     if (!sendResult.success) {
       return { success: false, error: sendResult.error }
     }
 
+    // Calculate next follow-up time
+    // Use the next template's delay_hours if available, otherwise fall back to workflow default
+    const nextTemplate = templates[followUpNumber]
+    const delayHours = nextTemplate?.delay_hours ?? workflow.follow_up_delay_hours
+
     // Update contact: increment follow_ups_sent, set next_follow_up_at, update context
+    const context = contextManager.parse(contact.conversation_context)
     const updatedContext = contextManager.incrementFollowUps(context)
-    const nextFollowUpAt = calculateNextFollowUpTime(workflow.follow_up_delay_hours)
+    const nextFollowUpAt = calculateNextFollowUpTime(delayHours)
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (supabase as any)
@@ -323,9 +366,27 @@ async function sendFollowUpMessage(contact: FollowUpContact): Promise<{ success:
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error generating follow-up',
+      error: error instanceof Error ? error.message : 'Unknown error sending follow-up',
     }
   }
+}
+
+/**
+ * Substitute variables in a template string
+ */
+function substituteVariables(
+  template: string,
+  variables: Record<string, string | null | undefined>
+): string {
+  let result = template
+
+  for (const [key, value] of Object.entries(variables)) {
+    // Support both {var} and {{var}} syntax
+    const regex = new RegExp(`\\{\\{?${key}\\}\\}?`, 'gi')
+    result = result.replace(regex, value || '')
+  }
+
+  return result
 }
 
 /**

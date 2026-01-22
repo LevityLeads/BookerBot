@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
+import { FollowUpTemplate, Json } from '@/types/database'
+
 interface UpdateWorkflowBody {
   name?: string
   channel?: 'sms' | 'whatsapp' | 'email'
@@ -9,6 +11,7 @@ interface UpdateWorkflowBody {
   qualification_criteria?: string
   initial_message_template?: string
   description?: string
+  follow_up_templates?: FollowUpTemplate[]
 }
 
 // GET /api/workflows/[id] - Get a single workflow
@@ -57,6 +60,11 @@ export async function PUT(
     if (body.qualification_criteria !== undefined) updateData.qualification_criteria = body.qualification_criteria
     if (body.initial_message_template !== undefined) updateData.initial_message_template = body.initial_message_template
     if (body.description !== undefined) updateData.description = body.description
+    if (body.follow_up_templates !== undefined) {
+      updateData.follow_up_templates = body.follow_up_templates as unknown as Json
+      // Also update follow_up_count to match number of templates
+      updateData.follow_up_count = body.follow_up_templates.length
+    }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: workflow, error } = await (supabase as any)
