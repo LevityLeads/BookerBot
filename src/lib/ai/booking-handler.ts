@@ -38,6 +38,8 @@ export interface BookingState {
   existingAppointmentId: string | null
   /** Existing calendar event ID being rescheduled */
   existingCalendarEventId: string | null
+  /** Slot pending confirmation, waiting for email */
+  pendingSlotAwaitingEmail: TimeSlot | null
 }
 
 export interface BookingFlowResult {
@@ -138,6 +140,106 @@ class BookingHandler {
   }
 
   /**
+   * Extract email from a message
+   */
+  extractEmail(message: string): string | null {
+    // Standard email regex pattern
+    const emailPattern = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/i
+    const match = message.match(emailPattern)
+    return match ? match[0].toLowerCase() : null
+  }
+
+  /**
+   * Check if we're waiting for email and handle the response
+   * Returns the result if handled, null if not applicable
+   */
+  async handlePendingEmailResponse(
+    contact: ContactWithWorkflow,
+    bookingState: BookingState,
+    message: string
+  ): Promise<BookingFlowResult | null> {
+    // Not waiting for email
+    if (!bookingState.pendingSlotAwaitingEmail) {
+      return null
+    }
+
+    const email = this.extractEmail(message)
+    if (!email) {
+      // No email found in message - ask again
+      console.log('[BookingHandler] Awaiting email but none found in message:', {
+        contactId: contact.id,
+        message: message.substring(0, 50),
+      })
+      return {
+        message: "I didn't catch that - could you share your email address so I can send the calendar invite?",
+        bookingState,
+        appointmentCreated: false,
+        appointmentRescheduled: false,
+        continueWithAI: false,
+      }
+    }
+
+    console.log('[BookingHandler] Email received, updating contact and creating appointment:', {
+      contactId: contact.id,
+      email,
+      pendingSlot: bookingState.pendingSlotAwaitingEmail.formatted,
+    })
+
+    // Update contact with email
+    const supabase = await createClient()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any)
+      .from('contacts')
+      .update({ email })
+      .eq('id', contact.id)
+
+    // Update contact object for appointment creation
+    const updatedContact = { ...contact, email }
+
+    // Create the appointment with the pending slot
+    const selectedSlot = bookingState.pendingSlotAwaitingEmail
+    try {
+      const appointment = await this.createAppointment(
+        updatedContact,
+        selectedSlot,
+        bookingState.existingAppointmentId,
+        bookingState.existingCalendarEventId
+      )
+
+      const confirmationMessage = bookingState.isRescheduling
+        ? this.buildRescheduleConfirmationMessage(contact.first_name || 'there', selectedSlot)
+        : this.buildConfirmationMessage(contact.first_name || 'there', selectedSlot)
+
+      return {
+        message: confirmationMessage,
+        bookingState: {
+          ...bookingState,
+          selectedSlot,
+          isActive: false,
+          lastOfferedSlot: null,
+          pendingSlotAwaitingEmail: null,
+        },
+        appointmentCreated: !bookingState.isRescheduling,
+        appointmentRescheduled: bookingState.isRescheduling,
+        appointmentId: appointment.id,
+        continueWithAI: false,
+      }
+    } catch (error) {
+      console.error('Failed to create appointment after email received:', error)
+      return {
+        message: "Hmm, something went wrong on my end. Let me have someone reach out to lock in your appointment.",
+        bookingState: {
+          ...bookingState,
+          pendingSlotAwaitingEmail: null,
+        },
+        appointmentCreated: false,
+        appointmentRescheduled: false,
+        continueWithAI: false,
+      }
+    }
+  }
+
+  /**
    * Handle booking interest - offer available time slots
    */
   async offerTimeSlots(
@@ -217,6 +319,7 @@ class BookingHandler {
           isRescheduling: false,
           existingAppointmentId: null,
           existingCalendarEventId: null,
+          pendingSlotAwaitingEmail: null,
         },
         appointmentCreated: false,
         appointmentRescheduled: false,
@@ -358,6 +461,25 @@ class BookingHandler {
         appointmentCreated: false,
         appointmentRescheduled: false,
         continueWithAI: true,
+      }
+    }
+
+    // Check if contact has email - required for calendar invite
+    if (!contact.email) {
+      console.log('[BookingHandler] No email on contact - asking for email before booking', {
+        contactId: contact.id,
+        selectedSlot: selectedSlot.formatted,
+      })
+      const firstName = contact.first_name || 'there'
+      return {
+        message: `Perfect, ${firstName}! ${selectedSlot.formatted} works great. Just need your email to send over the calendar invite - what's the best one to use?`,
+        bookingState: {
+          ...bookingState,
+          pendingSlotAwaitingEmail: selectedSlot,
+        },
+        appointmentCreated: false,
+        appointmentRescheduled: false,
+        continueWithAI: false,
       }
     }
 
@@ -983,6 +1105,7 @@ class BookingHandler {
       isRescheduling: false,
       existingAppointmentId: null,
       existingCalendarEventId: null,
+      pendingSlotAwaitingEmail: null,
     }
   }
 
@@ -1016,6 +1139,13 @@ class BookingHandler {
       isRescheduling: state.isRescheduling,
       existingAppointmentId: state.existingAppointmentId,
       existingCalendarEventId: state.existingCalendarEventId,
+      pendingSlotAwaitingEmail: state.pendingSlotAwaitingEmail
+        ? {
+            start: state.pendingSlotAwaitingEmail.start.toISOString(),
+            end: state.pendingSlotAwaitingEmail.end.toISOString(),
+            formatted: state.pendingSlotAwaitingEmail.formatted,
+          }
+        : null,
     }
   }
 
@@ -1049,6 +1179,9 @@ class BookingHandler {
       isRescheduling: Boolean(data.isRescheduling),
       existingAppointmentId: (data.existingAppointmentId as string) || null,
       existingCalendarEventId: (data.existingCalendarEventId as string) || null,
+      pendingSlotAwaitingEmail: data.pendingSlotAwaitingEmail
+        ? parseSlot(data.pendingSlotAwaitingEmail as { start: string; end: string; formatted: string })
+        : null,
     }
   }
 
@@ -1201,6 +1334,7 @@ class BookingHandler {
           isRescheduling: true,
           existingAppointmentId: existingAppointment.id,
           existingCalendarEventId: existingAppointment.calendar_event_id,
+          pendingSlotAwaitingEmail: null,
         },
         appointmentCreated: false,
         appointmentRescheduled: false,

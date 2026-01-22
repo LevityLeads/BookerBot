@@ -290,9 +290,28 @@ export class ConversationOrchestrator {
       bookingActive: bookingState.isActive,
       offeredSlotsCount: bookingState.offeredSlots.length,
       offerAttempts: bookingState.offerAttempts,
+      pendingSlotAwaitingEmail: bookingState.pendingSlotAwaitingEmail?.formatted || null,
       intent: intent.intent,
       qualificationStatus: qualificationAssessment.status,
     })
+
+    // Check if we're waiting for email to complete a booking
+    if (bookingState.pendingSlotAwaitingEmail) {
+      console.log('[Booking Flow] Pending slot awaiting email - checking for email in message')
+      const emailResult = await bookingHandler.handlePendingEmailResponse(
+        typedContact,
+        bookingState,
+        input.message
+      )
+      if (emailResult) {
+        return this.saveBookingResponse(
+          typedContact,
+          context,
+          emailResult,
+          input.message
+        )
+      }
+    }
 
     // Handle reschedule requests for booked contacts
     if (intent.intent === 'reschedule' && typedContact.status === 'booked') {
