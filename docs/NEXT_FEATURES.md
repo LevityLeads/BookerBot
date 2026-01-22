@@ -3,7 +3,7 @@
 **Created:** January 2026
 **Updated:** January 2026
 **Author:** Docs & Audit Lead
-**Status:** Phase A Complete - In Progress
+**Status:** Phase B Complete - Analytics Dashboard Done
 
 ---
 
@@ -24,16 +24,16 @@
 
 | Feature | Done | Missing |
 |---------|------|---------|
-| Dashboard | Basic stats cards | Real analytics (placeholders show "--%" for rates) |
+| Dashboard | ✅ Real analytics, funnel, AI usage | - |
 | Appointments | List view with stats | Calendar view, status management UI, filtering |
-| Recent Activity | Placeholder UI | Real activity feed from messages table |
+| Recent Activity | ✅ Real activity feed | - |
 | Automation | Jobs + cron | Workflow pause/resume UI |
 
 ### Not Started ❌
 
 | Feature | Priority | Complexity |
 |---------|----------|------------|
-| Real Analytics | **HIGH** | Medium |
+| Real Analytics | ✅ COMPLETE | Medium |
 | CRM Foundations | **HIGH** | Medium |
 | Production Hardening | **MEDIUM** | Medium |
 | Email Channel (Resend) | LOW | Medium |
@@ -331,11 +331,15 @@ Based on business value and dependencies:
 **Environment variable needed:**
 - `CRON_SECRET` - Secret for authenticating cron requests
 
-### Phase B: Analytics (Sprint 6b)
-1. Create `/api/analytics` endpoint
-2. Update dashboard with real stats
-3. Add recent activity feed
-4. Add token/cost tracking display
+### Phase B: Analytics (Sprint 6b) ✅ COMPLETE
+1. ✅ Create `/api/analytics` endpoint
+2. ✅ Update dashboard with real stats (response, qualification, booking, opt-out rates)
+3. ✅ Add recent activity feed (from messages table)
+4. ✅ Add token/cost tracking display (AI usage panel)
+5. ✅ Add contact funnel visualization
+
+**New files created:**
+- `src/app/api/analytics/route.ts` - Analytics API endpoint
 
 ### Phase C: CRM Foundations (Sprint 6c)
 1. Add UI pagination to contacts page
