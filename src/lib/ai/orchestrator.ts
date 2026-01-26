@@ -13,7 +13,7 @@ import {
   WorkflowKnowledge,
   createEmptyKnowledge
 } from '@/types/ai'
-import { Contact, Message, Workflow, Client, Json } from '@/types/database'
+import { Contact, Message, Workflow, Client, Json, FollowUpTemplate } from '@/types/database'
 
 type ContactWithWorkflow = Contact & {
   workflows: Workflow & {
@@ -542,7 +542,9 @@ export class ConversationOrchestrator {
     }
     const updateData: Partial<Contact> = {
       conversation_context: contextWithBooking as Json,
-      last_message_at: new Date().toISOString()
+      last_message_at: new Date().toISOString(),
+      // Reset follow-up timer since contact replied
+      next_follow_up_at: this.calculateNextFollowUpAt(typedContact.workflows)
     }
 
     // Apply status update - prioritize qualification status over in_conversation transition
@@ -588,7 +590,8 @@ export class ConversationOrchestrator {
       .update({
         status: 'opted_out',
         opted_out: true,
-        opted_out_at: new Date().toISOString()
+        opted_out_at: new Date().toISOString(),
+        next_follow_up_at: null // Clear follow-up since they opted out
       })
       .eq('id', contact.id)
 
@@ -734,6 +737,17 @@ export class ConversationOrchestrator {
   }
 
   /**
+   * Calculate the next follow-up time based on workflow settings.
+   * Resets the follow-up timer when a contact replies.
+   */
+  private calculateNextFollowUpAt(workflow: Workflow): string {
+    const templates = (workflow.follow_up_templates as FollowUpTemplate[] | null) || []
+    const firstTemplateDelay = templates[0]?.delay_hours
+    const delayHours = firstTemplateDelay ?? workflow.follow_up_delay_hours ?? 24
+    return new Date(Date.now() + delayHours * 60 * 60 * 1000).toISOString()
+  }
+
+  /**
    * Unified method to save booking flow response and update contact.
    * Consolidates saveBookingResponse and saveBookingResponseWithUsage.
    *
@@ -805,12 +819,16 @@ export class ConversationOrchestrator {
     // Update contact
     const updateData: Partial<Contact> & { conversation_context: Json } = {
       conversation_context: contextWithBooking as Json,
-      last_message_at: new Date().toISOString()
+      last_message_at: new Date().toISOString(),
+      // Reset follow-up timer since contact replied
+      next_follow_up_at: this.calculateNextFollowUpAt(contact.workflows)
     }
 
     // Contact becomes booked after new booking (stays booked after reschedule)
     if (bookingResult.appointmentCreated) {
       updateData.status = 'booked'
+      // Clear follow-up timer for booked contacts
+      updateData.next_follow_up_at = null
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -886,7 +904,9 @@ export class ConversationOrchestrator {
     // Update contact
     const updateData: Partial<Contact> & { conversation_context: Json } = {
       conversation_context: contextWithBooking as Json,
-      last_message_at: new Date().toISOString()
+      last_message_at: new Date().toISOString(),
+      // Reset follow-up timer since contact replied
+      next_follow_up_at: this.calculateNextFollowUpAt(contact.workflows)
     }
 
     if (statusUpdate) {

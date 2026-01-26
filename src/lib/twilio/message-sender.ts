@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { sendMessage, isTwilioConfigured } from './client'
-import { Contact, Workflow, Client } from '@/types/database'
+import { Contact, Workflow, Client, FollowUpTemplate } from '@/types/database'
 
 type ContactWithWorkflow = Contact & {
   workflows: Workflow & {
@@ -244,12 +244,20 @@ export async function sendInitialOutreach(contactId: string): Promise<SendOutbou
 
   // Update contact status to 'contacted' if successful
   if (result.success) {
+    // Calculate next_follow_up_at based on workflow settings
+    // Use first follow-up template's delay, or fall back to workflow default
+    const templates = (typedContact.workflows.follow_up_templates as FollowUpTemplate[] | null) || []
+    const firstTemplateDelay = templates[0]?.delay_hours
+    const delayHours = firstTemplateDelay ?? typedContact.workflows.follow_up_delay_hours ?? 24
+    const nextFollowUpAt = new Date(Date.now() + delayHours * 60 * 60 * 1000)
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (supabase as any)
       .from('contacts')
       .update({
         status: 'contacted',
-        last_message_at: new Date().toISOString()
+        last_message_at: new Date().toISOString(),
+        next_follow_up_at: nextFollowUpAt.toISOString()
       })
       .eq('id', contactId)
   }

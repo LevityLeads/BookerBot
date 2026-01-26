@@ -15,11 +15,14 @@ export class HandoffHandler {
   ): Promise<void> {
     const supabase = createServiceClient()
 
-    // 1. Update contact status to handed_off
+    // 1. Update contact status to handed_off and clear follow-up timer
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (supabase as any)
       .from('contacts')
-      .update({ status: 'handed_off' })
+      .update({
+        status: 'handed_off',
+        next_follow_up_at: null // Clear follow-up since human is taking over
+      })
       .eq('id', contact.id)
 
     // 2. Log the escalation (create a system message)
