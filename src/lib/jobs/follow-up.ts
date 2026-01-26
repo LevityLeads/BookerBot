@@ -16,7 +16,7 @@ import { JobResult, JobError, BatchConfig, DEFAULT_BATCH_CONFIG, ProcessingStats
 import { Contact, Workflow, Client, Message, BusinessHours, Json, FollowUpTemplate } from '@/types/database'
 import { WorkflowKnowledge } from '@/types/ai'
 
-type FollowUpContact = Contact & {
+export type FollowUpContact = Contact & {
   workflows: Workflow & {
     clients: Client
   }
@@ -217,8 +217,16 @@ export async function processFollowUps(
 
 /**
  * Generate and send a follow-up message to a contact
+ * Exported for use by manual follow-up API
  */
-async function sendFollowUpMessage(contact: FollowUpContact): Promise<{ success: boolean; error?: string }> {
+export async function sendFollowUpMessage(contact: FollowUpContact): Promise<{
+  success: boolean
+  error?: string
+  followUpNumber?: number
+  maxFollowUps?: number
+  messageContent?: string
+  aiGenerated?: boolean
+}> {
   const supabase = createClient()
 
   const workflow = contact.workflows
@@ -362,11 +370,19 @@ async function sendFollowUpMessage(contact: FollowUpContact): Promise<{ success:
       })
       .eq('id', contact.id)
 
-    return { success: true }
+    return {
+      success: true,
+      followUpNumber,
+      maxFollowUps,
+      messageContent,
+      aiGenerated,
+    }
   } catch (error) {
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error sending follow-up',
+      followUpNumber,
+      maxFollowUps,
     }
   }
 }

@@ -19,6 +19,7 @@ import {
   Cpu,
 } from 'lucide-react'
 import { Contact, Workflow, Client, Message, Appointment } from '@/types/database'
+import { FollowUpButton } from '@/components/follow-up-button'
 
 type ContactWithDetails = Contact & {
   workflows: Workflow & {
@@ -168,11 +169,35 @@ export default async function ContactDetailPage({
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Follow-ups</CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-foreground">{typedContact.follow_ups_sent}</p>
-            <p className="text-sm text-muted-foreground">
-              of {typedContact.workflows.follow_up_count} max
-            </p>
+          <CardContent className="space-y-3">
+            <div>
+              <p className="text-2xl font-bold text-foreground">{typedContact.follow_ups_sent}</p>
+              <p className="text-sm text-muted-foreground">
+                of {typedContact.workflows.follow_up_count} max
+              </p>
+            </div>
+            <FollowUpButton
+              contactId={typedContact.id}
+              followUpsSent={typedContact.follow_ups_sent}
+              maxFollowUps={typedContact.workflows.follow_up_count}
+              canSendFollowUp={
+                !typedContact.opted_out &&
+                typedContact.status !== 'booked' &&
+                typedContact.status !== 'handed_off' &&
+                typedContact.status !== 'unresponsive' &&
+                typedContact.workflows.status === 'active' &&
+                typedContact.follow_ups_sent < typedContact.workflows.follow_up_count
+              }
+              ineligibilityReason={
+                typedContact.opted_out ? 'Contact opted out' :
+                typedContact.status === 'booked' ? 'Already booked' :
+                typedContact.status === 'handed_off' ? 'Handed off to human' :
+                typedContact.status === 'unresponsive' ? 'Max follow-ups sent' :
+                typedContact.workflows.status !== 'active' ? 'Workflow inactive' :
+                typedContact.follow_ups_sent >= typedContact.workflows.follow_up_count ? 'Max reached' :
+                null
+              }
+            />
           </CardContent>
         </Card>
 
